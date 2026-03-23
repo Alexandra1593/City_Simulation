@@ -200,21 +200,7 @@ namespace ProiectSPG
             lastMousePosition = location;
         }
 
-        //protected override void OnMouseMove(MouseButtons button, Point location)
-        //{
-        //    if ((button & MouseButtons.Left) != 0)
-        //    {
-        //        // Make each pixel correspond to a quarter of a degree.
-        //        float dx = MathUtil.DegreesToRadians(0.25f * (location.X - lastMousePosition.X));
-        //        float dy = MathUtil.DegreesToRadians(0.25f * (location.Y - lastMousePosition.Y));
-
-        //        camera.Pitch(dy);
-        //        camera.RotateY(dx);
-        //    }
-
-        //    lastMousePosition = location;
-        //}
-
+       
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
@@ -240,36 +226,6 @@ namespace ProiectSPG
             }
             base.Dispose(isDisposing);
         }
-
-        //private void OnKeyboardInput(GameTimer gameTimer)
-        //{
-        //    float dt = gameTimer.DeltaTime;
-
-        //    if (IsKeyDown(Keys.W) || IsKeyDown(Keys.Up))
-        //    {
-        //        camera.Walk(10.0f * dt);
-        //    }
-        //    if (IsKeyDown(Keys.S) || IsKeyDown(Keys.Down))
-        //    {
-        //        camera.Walk(-10.0f * dt);
-        //    }
-        //    if (IsKeyDown(Keys.A) || IsKeyDown(Keys.Left))
-        //    {
-        //        camera.Strafe(-10.0f * dt);
-        //    }
-        //    if (IsKeyDown(Keys.D) || IsKeyDown(Keys.Right))
-        //    {
-        //        camera.Strafe(10.0f * dt);
-        //    }
-
-        //    // reset camera
-        //    if(IsKeyDown(Keys.R))
-        //    {
-        //        camera.Position = new Vector3(0.0f, 2.0f, -115.0f);
-        //    }
-
-        //    camera.UpdateViewMatrix();
-        //}
 
         private void UpdateObjectCBs()
         {
@@ -817,47 +773,7 @@ namespace ProiectSPG
                    world: Matrix.Translation(+19.0f, 4.0f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
                   world: Matrix.Translation(+32.5f, 4.0f, -60.0f + i * 40.0f));
- 
-
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "box",
-                //   world: Matrix.Translation(-7.0f, 4.0f, -68.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house3Material", "shapeGeo", "box",
-                //    world: Matrix.Translation(+7.0f, 4.0f, -68.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house1Material", "shapeGeo", "box",
-                //    world: Matrix.Translation(+19.0f, 4.0f, -68.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house5Material", "shapeGeo", "box",
-                // world: Matrix.Translation(+32.5f, 4.0f, -68.0f + i * 40.0f));
-
-
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house1Material", "shapeGeo", "box",
-                //    world: Matrix.Translation(-7.0f, 4.0f, -76.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "box",
-                //   world: Matrix.Translation(+7.0f, 4.0f, -76.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house3Material", "shapeGeo", "box",
-                //    world: Matrix.Translation(+19.0f, 4.0f, -76.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
-                //   world: Matrix.Translation(+32.5f, 4.0f, -76.0f + i * 40.0f));
-
-
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house3Material", "shapeGeo", "box",
-                // world: Matrix.Translation(-7.0f, 4.0f, -84.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
-                //    world: Matrix.Translation(+7.0f, 4.0f, -84.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house5Material", "shapeGeo", "box",
-                //   world: Matrix.Translation(+19.0f, 4.0f, -84.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "box",
-                //   world: Matrix.Translation(+32.5f, 4.0f, -84.0f + i * 40.0f));
-
-
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house5Material", "shapeGeo", "box",
-                // world: Matrix.Translation(-7.0f, 4.0f, -92.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house5Material", "shapeGeo", "box",
-                //    world: Matrix.Translation(+7.0f, 4.0f, -92.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
-                //   world: Matrix.Translation(+19.0f, 4.0f, -92.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house1Material", "shapeGeo", "box",
-                //   world: Matrix.Translation(+32.5f, 4.0f, -92.0f + i * 40.0f));
-            }
+ }
 
             return objectCBIndex;
         }
@@ -877,44 +793,7 @@ namespace ProiectSPG
                   world: Matrix.Translation(+32.5f, 8.2f, -60.0f + i * 40.0f));
 
 
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //   world: Matrix.Translation(-7.0f, 8.2f, -68.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //    world: Matrix.Translation(+7.0f, 8.2f, -68.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //    world: Matrix.Translation(+19.0f, 8.2f, -68.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                // world: Matrix.Translation(+32.5f, 8.2f, -68.0f + i * 40.0f));
-
-
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //    world: Matrix.Translation(-7.0f, 8.2f, -76.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //   world: Matrix.Translation(+7.0f, 8.2f, -76.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //    world: Matrix.Translation(+19.0f, 8.2f, -76.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //   world: Matrix.Translation(+32.5f, 8.2f, -76.0f + i * 40.0f));
-
-
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                // world: Matrix.Translation(-7.0f, 8.2f, -84.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //    world: Matrix.Translation(+7.0f, 8.2f, -84.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //   world: Matrix.Translation(+19.0f, 8.2f, -84.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //   world: Matrix.Translation(+32.5f, 8.2f, -84.0f + i * 40.0f));
-
-
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                // world: Matrix.Translation(-7.0f, 8.2f, -92.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //    world: Matrix.Translation(+7.0f, 8.2f, -92.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //   world: Matrix.Translation(+19.0f, 8.2f, -92.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                //   world: Matrix.Translation(+32.5f, 8.2f, -92.0f + i * 40.0f));
+              
             }
 
             return objectCBIndex;
