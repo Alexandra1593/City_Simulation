@@ -1,0 +1,5 @@
+MyApp/bin/
+MyApp/obj/
+MyApp/Textures/
+*.csproj.user
+.vs/
