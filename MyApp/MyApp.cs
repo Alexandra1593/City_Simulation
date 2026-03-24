@@ -326,6 +326,7 @@ namespace ProiectSPG
             AddTexture("skyCubeMap", "nightSky.dds");
             AddTexture("terrain", "rocks.dds");
             AddTexture("water", "water.dds");
+            AddTexture("riverWalls", "riverWalls.dds");
         }
 
         private void AddTexture(string name, string fileName)
@@ -389,7 +390,8 @@ namespace ProiectSPG
                 textures["pavement"].Resource,
                 textures["roof"].Resource,
                 textures["terrain"].Resource,
-                textures["water"].Resource
+                textures["water"].Resource,
+                textures["riverWalls"].Resource
             };
             Resource skyTexture = textures["skyCubeMap"].Resource;
 
@@ -424,7 +426,7 @@ namespace ProiectSPG
             shaderResourceViewDescription.Format = skyTexture.Description.Format;
             Device.CreateShaderResourceView(skyTexture, shaderResourceViewDescription, cpuDescriptor);
 
-            skyTexHeapIndex = 14;
+            skyTexHeapIndex = 15;
         }
 
         private void CreateShadersAndInputLayout()
@@ -674,7 +676,7 @@ namespace ProiectSPG
             {
                 Name = "sky",
                 MaterialConstantBufferIndex = 12,
-                DiffuseSrvHeapIndex = 14,
+                DiffuseSrvHeapIndex = 15,
                 DiffuseAlbedo = Vector4.One,
                 FresnelR0 = new Vector3(0.1f),
                 Roughness = 1.0f
@@ -696,6 +698,15 @@ namespace ProiectSPG
                 DiffuseAlbedo = new Vector4(1, 1, 1, 0.8f),
                 FresnelR0 = new Vector3(0.1f),
                 Roughness = 0.0f
+            });
+            AddMaterial(new Material
+            {
+                Name = "riverWallsMaterial",
+                MaterialConstantBufferIndex = 15,
+                DiffuseSrvHeapIndex = 14,
+                DiffuseAlbedo = new Vector4(1, 1, 1, 1),
+                FresnelR0 = new Vector3(0.02f),
+                Roughness = 1.0f
             });
         }
 
@@ -727,7 +738,9 @@ namespace ProiectSPG
             objectCBIndex = CreateStreets(objectCBIndex);
             objectCBIndex = CreatePavement(objectCBIndex);
             CreateGrassAroundTrees(objectCBIndex);
-           objectCBIndex = CreateRiver(objectCBIndex);
+            objectCBIndex = CreateRiver(objectCBIndex);
+            objectCBIndex = CreateRiverMargins(objectCBIndex);
+            objectCBIndex = CreateRiverWalls(objectCBIndex);
         }
 
         private int CreateStreets(int objectCBIndex)
@@ -958,6 +971,63 @@ namespace ProiectSPG
                 "riverGrid",
                 world: Matrix.Translation(13.0f, -0.15f, 0.0f),
                 textureTransform: Matrix.Scaling(3.0f, 25.0f, 1.0f));
+
+            return objectCBIndex;
+        }
+        //RIVER pieces
+        private int CreateRiverMargins(int objectCBIndex)
+        {
+            // left margin
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "terrainMaterial",
+                "shapeGeo",
+                "pavementGrid",
+                world: Matrix.Scaling(0.7f, 7.0f, 1.0f) * Matrix.Translation(8.0f, -0.05f, 0.0f),
+                textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
+            );
+
+            // right margin
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "terrainMaterial",
+                "shapeGeo",
+                "pavementGrid",
+                world: Matrix.Scaling(0.7f, 6.0f, 7.0f) * Matrix.Translation(18.0f, -0.05f, 5.0f),
+                textureTransform: Matrix.Scaling(1.0f, 80.0f, 800.0f)
+            );
+
+            return objectCBIndex;
+        }
+
+
+        private int CreateRiverWalls(int objectCBIndex)
+        {
+            // Left wall
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "riverWallsMaterial",
+                "shapeGeo",
+                "box",
+                world: Matrix.Scaling(0.1f, 0.1f, 250.0f) *
+               Matrix.Translation(9.8f, 0.1f, 0.0f),
+               textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
+            );
+
+            // Right wall
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "riverWallsMaterial",
+                "shapeGeo",
+                "box",
+               world: Matrix.Scaling(0.1f, 0.1f, 250.0f) *
+               Matrix.Translation(16.2f, 0.1f, 0.0f),
+               textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
+            );
 
             return objectCBIndex;
         }
