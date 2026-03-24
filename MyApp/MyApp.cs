@@ -311,23 +311,24 @@ namespace ProiectSPG
 
         private void LoadTextures()
         {
-            AddTexture("house1", "house1.dds");
-            AddTexture("house2", "house2.dds");
-            AddTexture("house3", "house3.dds");
-            AddTexture("house4", "house4.dds");
-            AddTexture("house5", "house5.dds");
-            AddTexture("tree1", "treearray.dds");
-            AddTexture("tree2", "treeArray2.dds");
-            AddTexture("tree3", "tree02S.dds");
-            AddTexture("street", "street1.dds");
-            AddTexture("grass", "grass.dds");
-            AddTexture("pavement", "pavement.dds");
-            AddTexture("roof", "roof.dds");
-            AddTexture("skyCubeMap", "nightSky.dds");
-            AddTexture("terrain", "rocks.dds");
-            AddTexture("water", "water.dds");
-            AddTexture("riverWalls", "riverWalls.dds");
-            AddTexture("wood", "wood.dds");
+            AddTexture("house1", "house1.dds"); //0
+            AddTexture("house2", "house2.dds"); //1
+            AddTexture("house3", "house3.dds"); //2
+            AddTexture("house4", "house4.dds"); //3
+            AddTexture("house5", "house5.dds"); //4
+            AddTexture("tree1", "treearray.dds");//5
+            AddTexture("tree2", "treeArray2.dds");//6
+            AddTexture("tree3", "tree02S.dds"); //7
+            AddTexture("street", "street1.dds");//8
+            AddTexture("grass", "grass.dds");//9
+            AddTexture("pavement", "pavement.dds");//10
+            AddTexture("roof", "roof.dds");//11
+            AddTexture("skyCubeMap", "nightSky.dds");//12
+            AddTexture("terrain", "rocks.dds");//13
+            AddTexture("water", "water.dds");//14
+            AddTexture("riverWalls", "riverWalls.dds");//15
+            AddTexture("wood", "wood.dds");//16
+
         }
 
         private void AddTexture(string name, string fileName)
@@ -719,6 +720,25 @@ namespace ProiectSPG
                 FresnelR0 = new Vector3(0.02f),
                 Roughness = 1.0f
             });
+            AddMaterial(new Material
+            {
+                Name = "lampPoleMaterial",
+                MaterialConstantBufferIndex = 17,
+                DiffuseSrvHeapIndex = 10, 
+                DiffuseAlbedo = new Vector4(0.25f, 0.25f, 0.25f, 1.0f),
+                FresnelR0 = new Vector3(0.03f),
+                Roughness = 0.6f
+            });
+
+            AddMaterial(new Material
+            {
+                Name = "lampLightMaterial",
+                MaterialConstantBufferIndex = 18,
+                DiffuseSrvHeapIndex = 10, 
+                DiffuseAlbedo = new Vector4(1.0f, 0.95f, 0.7f, 1.0f),
+                FresnelR0 = new Vector3(0.05f),
+                Roughness = 0.2f
+            });
         }
 
         private void AddMaterial(Material material)
@@ -748,11 +768,12 @@ namespace ProiectSPG
             objectCBIndex = CreateTrees(objectCBIndex);
             objectCBIndex = CreateStreets(objectCBIndex);
             objectCBIndex = CreatePavement(objectCBIndex);
-            CreateGrassAroundTrees(objectCBIndex);
+            objectCBIndex = CreateGrassAroundTrees(objectCBIndex);
             objectCBIndex = CreateRiver(objectCBIndex);
             objectCBIndex = CreateRiverMargins(objectCBIndex);
             objectCBIndex = CreateRiverWalls(objectCBIndex);
             objectCBIndex = CreateBridges(objectCBIndex);
+            objectCBIndex = CreateStreetLamps(objectCBIndex);
         }
 
         private int CreateStreets(int objectCBIndex)
@@ -1093,6 +1114,88 @@ namespace ProiectSPG
             return objectCBIndex;
         }
 
+        private int CreateStreetLamp(int objectCBIndex, float x, float z)
+        {
+            // base
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "lampPoleMaterial",
+                "shapeGeo",
+                "box",
+                world: Matrix.Scaling(0.15f, 0.05f, 0.15f) *
+                       Matrix.Translation(x, 0.2f, z)
+            );
+
+            // pole
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "lampPoleMaterial",
+                "shapeGeo",
+                "box",
+                world: Matrix.Scaling(0.04f, 0.45f, 0.04f) *
+                       Matrix.Translation(x, 1.6f, z)
+            );
+
+            // horizontal arm
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "lampPoleMaterial",
+                "shapeGeo",
+                "box",
+                world: Matrix.Scaling(0.12f, 0.02f, 0.03f) *
+                       Matrix.Translation(x + 0.45f, 2.95f, z)
+            );
+
+            // lamp head
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "lampLightMaterial",
+                "shapeGeo",
+                "box",
+                world: Matrix.Scaling(0.05f, 0.05f, 0.05f) *
+                       Matrix.Translation(x + 0.75f, 2.85f, z)
+            );
+
+            return objectCBIndex;
+        }
+
+
+        private int CreateStreetLamps(int objectCBIndex)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                float z = 8.0f + i * 10.0f;
+
+                // lamps near first street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, -3.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 3.5f, z);
+
+                // lamps near second street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 22.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 28.5f, z);
+
+                
+            }
+            for (int i = 0; i < 5; i++)
+            {
+                float z = -8.0f + i * -10.0f;
+
+                // lamps near first street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, -3.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 3.5f, z);
+
+                // lamps near second street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 22.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 28.5f, z);
+
+
+            }
+            return objectCBIndex;
+        }
         private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
            Matrix? world = null, Matrix? textureTransform = null)
         {
