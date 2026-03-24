@@ -311,7 +311,7 @@ namespace ProiectSPG
 
         private void LoadTextures()
         {
-            AddTexture("house1", "house1.dds"); //0
+            AddTexture("house1", "images.dds"); //0
             AddTexture("house2", "house2.dds"); //1
             AddTexture("house3", "house3.dds"); //2
             AddTexture("house4", "house4.dds"); //3
@@ -463,9 +463,10 @@ namespace ProiectSPG
             SubmeshGeometry grassGrid = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 0f, 3.0f, 3), vertices, indices);
             SubmeshGeometry pavementGrid = AppendMeshData(GeometryGenerator.CreateGrid(6.0f, 250.0f, 10, 10), vertices, indices);
             SubmeshGeometry roofBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 0.5f, 3.0f, 3), vertices, indices);
-            SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(100.0f, 100.0f, 100, 100), vertices, indices);
+            SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(200.0f, 200.0f, 100, 100), vertices, indices);
             SubmeshGeometry riverGrid = AppendMeshData(GeometryGenerator.CreateGrid(10.0f, 250.0f, 20, 80), vertices, indices);
-           
+            SubmeshGeometry houseBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 8.0f, 5.0f, 3), vertices, indices);
+
             var geo = MeshGeometry.New(Device, CommandList, vertices, indices.ToArray(), "shapeGeo");
 
             geo.DrawArguments["box"] = box;
@@ -477,6 +478,7 @@ namespace ProiectSPG
             geo.DrawArguments["roofBox"] = roofBox;
             geo.DrawArguments["terrainGrid"] = terrainGrid;
             geo.DrawArguments["riverGrid"] = riverGrid;
+            geo.DrawArguments["houseBox"] = houseBox;
 
             geometries[geo.Name] = geo;
         }
@@ -811,10 +813,10 @@ namespace ProiectSPG
                 //there are 4 rows with buildings
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
                   world: Matrix.Translation(-7.0f, 4.0f, -60.0f + i * 40.0f));
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "house1Material", "shapeGeo", "box",
+                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "house1Material", "shapeGeo", "houseBox",
                    world: Matrix.Translation(7.3f, 4.0f, -60.0f + i * 40.0f));
              
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "box",
+                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "houseBox",
                    world: Matrix.Translation(+19.0f, 4.0f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
                   world: Matrix.Translation(+32.5f, 4.0f, -60.0f + i * 40.0f));
@@ -831,7 +833,7 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
                   world: Matrix.Translation(-7.0f, 8.2f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
-                    world: Matrix.Translation(+7.0f, 8.2f, -60.0f + i * 40.0f));
+                    world: Matrix.Scaling(1.0f, 1.0f, 1.7f)* Matrix.Translation(+7.3f, 8.2f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
                    world: Matrix.Translation(+19.0f, 8.2f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
@@ -992,7 +994,7 @@ namespace ProiectSPG
         }
 
 
-
+  //RIVER pieces
         private int CreateRiver(int objectCBIndex)
         {
             AddRenderItem(
@@ -1006,7 +1008,7 @@ namespace ProiectSPG
 
             return objectCBIndex;
         }
-        //RIVER pieces
+      
         private int CreateRiverMargins(int objectCBIndex)
         {
             // left margin
@@ -1023,7 +1025,6 @@ namespace ProiectSPG
 
             return objectCBIndex;
         }
-
 
         private int CreateRiverWalls(int objectCBIndex)
         {
