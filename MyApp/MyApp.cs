@@ -319,9 +319,9 @@ namespace ProiectSPG
             AddTexture("tree1", "treearray.dds");
             AddTexture("tree2", "treeArray2.dds");
             AddTexture("tree3", "tree02S.dds");
-            AddTexture("street", "street.dds");
+            AddTexture("street", "street1.dds");
             AddTexture("grass", "grass.dds");
-            AddTexture("pavement", "PavingStones.dds");
+            AddTexture("pavement", "pavement.dds");
             AddTexture("roof", "roof.dds");
             AddTexture("skyCubeMap", "nightSky.dds");
             AddTexture("terrain", "rocks.dds");
@@ -458,7 +458,7 @@ namespace ProiectSPG
             SubmeshGeometry grassGrid = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 0f, 3.0f, 3), vertices, indices);
             SubmeshGeometry pavementGrid = AppendMeshData(GeometryGenerator.CreateGrid(6.0f, 250.0f, 10, 10), vertices, indices);
             SubmeshGeometry roofBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 0.5f, 3.0f, 3), vertices, indices);
-            SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(200.0f, 400.0f, 100, 100), vertices, indices);
+            SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(100.0f, 100.0f, 100, 100), vertices, indices);
             SubmeshGeometry riverGrid = AppendMeshData(GeometryGenerator.CreateGrid(10.0f, 250.0f, 20, 80), vertices, indices);
            
             var geo = MeshGeometry.New(Device, CommandList, vertices, indices.ToArray(), "shapeGeo");
