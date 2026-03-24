@@ -327,6 +327,7 @@ namespace ProiectSPG
             AddTexture("terrain", "rocks.dds");
             AddTexture("water", "water.dds");
             AddTexture("riverWalls", "riverWalls.dds");
+            AddTexture("wood", "wood.dds");
         }
 
         private void AddTexture(string name, string fileName)
@@ -391,7 +392,8 @@ namespace ProiectSPG
                 textures["roof"].Resource,
                 textures["terrain"].Resource,
                 textures["water"].Resource,
-                textures["riverWalls"].Resource
+                textures["riverWalls"].Resource,
+                textures["wood"].Resource
             };
             Resource skyTexture = textures["skyCubeMap"].Resource;
 
@@ -426,7 +428,7 @@ namespace ProiectSPG
             shaderResourceViewDescription.Format = skyTexture.Description.Format;
             Device.CreateShaderResourceView(skyTexture, shaderResourceViewDescription, cpuDescriptor);
 
-            skyTexHeapIndex = 15;
+            skyTexHeapIndex = 16;
         }
 
         private void CreateShadersAndInputLayout()
@@ -676,7 +678,7 @@ namespace ProiectSPG
             {
                 Name = "sky",
                 MaterialConstantBufferIndex = 12,
-                DiffuseSrvHeapIndex = 15,
+                DiffuseSrvHeapIndex = 16,
                 DiffuseAlbedo = Vector4.One,
                 FresnelR0 = new Vector3(0.1f),
                 Roughness = 1.0f
@@ -704,6 +706,15 @@ namespace ProiectSPG
                 Name = "riverWallsMaterial",
                 MaterialConstantBufferIndex = 15,
                 DiffuseSrvHeapIndex = 14,
+                DiffuseAlbedo = new Vector4(1, 1, 1, 1),
+                FresnelR0 = new Vector3(0.02f),
+                Roughness = 1.0f
+            });
+            AddMaterial(new Material
+            {
+                Name = "woodMaterial",
+                MaterialConstantBufferIndex = 16,
+                DiffuseSrvHeapIndex = 15,
                 DiffuseAlbedo = new Vector4(1, 1, 1, 1),
                 FresnelR0 = new Vector3(0.02f),
                 Roughness = 1.0f
@@ -741,14 +752,13 @@ namespace ProiectSPG
             objectCBIndex = CreateRiver(objectCBIndex);
             objectCBIndex = CreateRiverMargins(objectCBIndex);
             objectCBIndex = CreateRiverWalls(objectCBIndex);
+            objectCBIndex = CreateBridges(objectCBIndex);
         }
 
         private int CreateStreets(int objectCBIndex)
         {
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "grid",
                 textureTransform: Matrix.Scaling(1.0f, 20.0f, 2.0f));
-            //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "grid",
-            //    textureTransform: Matrix.Scaling(1.0f, 20.0f, 2.0f), world: Matrix.Translation(13.0f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "grid",
                 textureTransform: Matrix.Scaling(1.0f, 20.0f, 2.0f), world: Matrix.Translation(26.0f, 0.0f, 0));
 
@@ -780,8 +790,9 @@ namespace ProiectSPG
                 //there are 4 rows with buildings
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
                   world: Matrix.Translation(-7.0f, 4.0f, -60.0f + i * 40.0f));
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house1Material", "shapeGeo", "box",
-                    world: Matrix.Translation(+7.0f, 4.0f, -60.0f + i * 40.0f));
+                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "house1Material", "shapeGeo", "box",
+                   world: Matrix.Translation(7.3f, 4.0f, -60.0f + i * 40.0f));
+             
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "box",
                    world: Matrix.Translation(+19.0f, 4.0f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
@@ -978,26 +989,16 @@ namespace ProiectSPG
         private int CreateRiverMargins(int objectCBIndex)
         {
             // left margin
-            AddRenderItem(
-                RenderLayer.Opaque,
-                objectCBIndex++,
-                "terrainMaterial",
-                "shapeGeo",
-                "pavementGrid",
+            AddRenderItem( RenderLayer.Opaque,objectCBIndex++,"terrainMaterial","shapeGeo","pavementGrid",
                 world: Matrix.Scaling(0.7f, 7.0f, 1.0f) * Matrix.Translation(8.0f, -0.05f, 0.0f),
                 textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
             );
 
             // right margin
-            AddRenderItem(
-                RenderLayer.Opaque,
-                objectCBIndex++,
-                "terrainMaterial",
-                "shapeGeo",
-                "pavementGrid",
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++,"terrainMaterial","shapeGeo","pavementGrid",
                 world: Matrix.Scaling(0.7f, 6.0f, 7.0f) * Matrix.Translation(18.0f, -0.05f, 5.0f),
                 textureTransform: Matrix.Scaling(1.0f, 80.0f, 800.0f)
-            );
+            ); 
 
             return objectCBIndex;
         }
@@ -1031,8 +1032,69 @@ namespace ProiectSPG
 
             return objectCBIndex;
         }
+       
+        private int CreateBridges(int objectCBIndex)
+        {
+            float bridgeX = 13.0f;
+            float bridgeY = 0.35f;
+
+            
+            // Bridge 1
+            
+            float z1 = -12.0f;
+
+            // deck
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
+               world: Matrix.Scaling(4.0f, 0.8f, 1.0f) *
+                       Matrix.Translation(bridgeX, bridgeY, z1),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            // left rail
+            AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"woodMaterial", "shapeGeo","roofBox",
+                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
+                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z1 - 1.35f),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            // right rail
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
+                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
+                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z1 + 1.35f),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            
+            // Bridge 2
+            
+            float z2 = 12.0f;
+
+            // deck
+            AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"woodMaterial","shapeGeo", "roofBox",
+                world: Matrix.Scaling(4.0f, 0.8f, 1.0f) *
+                       Matrix.Translation(bridgeX, bridgeY, z2),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            // left rail
+            AddRenderItem( RenderLayer.Opaque,objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
+                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
+                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z2 - 1.35f),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            // right rail
+            AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
+                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
+                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z2 + 1.35f),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            return objectCBIndex;
+        }
+
         private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
-            Matrix? world = null, Matrix? textureTransform = null)
+           Matrix? world = null, Matrix? textureTransform = null)
         {
             MeshGeometry meshGeometry = geometries[geometryName];
             SubmeshGeometry submesh = meshGeometry.DrawArguments[submeshName];
@@ -1050,6 +1112,7 @@ namespace ProiectSPG
             renderItemLayers[layer].Add(renderItem);
             allRenderItems.Add(renderItem);
         }
+
 
         private void DrawRenderItems(GraphicsCommandList cmdList, IList<RenderItem> renderItems)
         {
