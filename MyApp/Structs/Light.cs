@@ -7,7 +7,7 @@ namespace ProiectSPG.Structs
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     internal struct Light
     {
-        public const int MaxLights = 16;
+        public const int MaxLights = 43; 
 
         public Vector3 Strength;
         public float FalloffStart;  // Point/spot light only.

@@ -263,7 +263,15 @@ namespace ProiectSPG
         protected virtual void Draw(GameTimer gameTimer) { }
 
         /// <summary>
-        /// Initializes the main application window
+        /// Initializes the 
+        /// 
+        /// 
+        /// 
+        /// 
+        /// 
+        /// 
+        /// 
+        /// application window
         /// </summary>
         protected void InitMainWindow()
         {

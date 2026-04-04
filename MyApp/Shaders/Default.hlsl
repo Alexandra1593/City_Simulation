@@ -12,7 +12,7 @@
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
-    #define NUM_SPOT_LIGHTS 0
+    #define NUM_SPOT_LIGHTS 40
 #endif
 
 // Include common HLSL code.
@@ -94,6 +94,11 @@ float4 PS(VertexOut pin) : SV_Target
 
     // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
+
+    if(mat.DiffuseAlbedo.r > 2.0f)
+{
+    return mat.DiffuseAlbedo;
+}
 
     return litColor;
 }

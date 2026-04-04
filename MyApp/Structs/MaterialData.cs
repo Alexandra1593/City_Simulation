@@ -9,7 +9,7 @@ namespace ProiectSPG.Structs
         public Vector4 DiffuseAlbedo;
         public Vector3 FresnelR0;
         public float Roughness;
-
+     
         // Used in texture mapping.
         public Matrix MatTransform;
 

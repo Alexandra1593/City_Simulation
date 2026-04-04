@@ -4,6 +4,7 @@
     {
         Opaque,
         Sky,
-        Transparent
+        Transparent,
+        //Moon
     }
 }

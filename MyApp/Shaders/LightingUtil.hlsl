@@ -4,7 +4,7 @@
 // Contains API for shader lighting.
 //***************************************************************************************
 
-#define MaxLights 16
+#define MaxLights 50
 
 struct Light
 {
@@ -14,6 +14,7 @@ struct Light
     float FalloffEnd;   // point/spot light only
     float3 Position;    // point light only
     float SpotPower;    // spot light only
+ 
 };
 
 struct Material

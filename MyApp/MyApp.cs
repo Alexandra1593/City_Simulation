@@ -29,7 +29,8 @@ namespace ProiectSPG
         private readonly IDictionary<string, MeshGeometry> geometries = new Dictionary<string, MeshGeometry>();
         private readonly IDictionary<string, Material> materials = new Dictionary<string, Material>();
         private readonly IDictionary<string, Texture> textures = new Dictionary<string, Texture>();
-        
+        private readonly List<Vector3> streetLampLightPositions = new List<Vector3>();
+
 
         private InputLayoutDescription inputLayout;
 
@@ -40,7 +41,8 @@ namespace ProiectSPG
         {
             [RenderLayer.Opaque] = new List<RenderItem>(),
             [RenderLayer.Sky] = new List<RenderItem>(),
-            [RenderLayer.Transparent] = new List<RenderItem>()
+            [RenderLayer.Transparent] = new List<RenderItem>(),
+           // [RenderLayer.Moon] = new List<RenderItem>()
         };
 
         private int skyTexHeapIndex;
@@ -103,7 +105,7 @@ namespace ProiectSPG
 
         protected override void Update(GameTimer gameTimer)
         {
-            //OnKeyboardInput(gameTimer);
+            OnKeyboardInput(gameTimer);
 
             // Cycle through the circular frame resource array.
             currentFrameResourceIndex = (currentFrameResourceIndex + 1) % NUMBER_OF_FRAME_RESOURCES;
@@ -166,6 +168,9 @@ namespace ProiectSPG
 
             CommandList.PipelineState = pipelineStates["opaque"];
             DrawRenderItems(CommandList, renderItemLayers[RenderLayer.Opaque]);
+
+            //CommandList.PipelineState = pipelineStates["moon"];
+            //DrawRenderItems(CommandList, renderItemLayers[RenderLayer.Moon]);
 
             CommandList.PipelineState = pipelineStates["transparent"];
             DrawRenderItems(CommandList, renderItemLayers[RenderLayer.Transparent]);
@@ -298,13 +303,55 @@ namespace ProiectSPG
             mainPassCB.FarZ = 1000.0f;
             mainPassCB.TotalTime = gameTimer.TotalTime;
             mainPassCB.DeltaTime = gameTimer.DeltaTime;
-            mainPassCB.AmbientLight = new Vector4(0.25f, 0.25f, 0.35f, 1.0f); 
-            mainPassCB.Lights[0].Direction = new Vector3(0.57735f, -0.57735f, 0.57735f);
-            mainPassCB.Lights[0].Strength = new Vector3(0.6f);
-            mainPassCB.Lights[1].Direction = new Vector3(-0.57735f, -0.57735f, 0.57735f);
-            mainPassCB.Lights[1].Strength = new Vector3(0.3f);
-            mainPassCB.Lights[2].Direction = new Vector3(0.0f, -0.707f, -0.707f);
-            mainPassCB.Lights[2].Strength = new Vector3(0.15f);
+            //mainPassCB.AmbientLight = new Vector4(0.25f, 0.25f, 0.35f, 1.0f); 
+            //mainPassCB.Lights[0].Direction = new Vector3(0.57735f, -0.57735f, 0.57735f);
+            //mainPassCB.Lights[0].Strength = new Vector3(0.6f);
+            //mainPassCB.Lights[1].Direction = new Vector3(-0.57735f, -0.57735f, 0.57735f);
+            //mainPassCB.Lights[1].Strength = new Vector3(0.3f);
+            //mainPassCB.Lights[2].Direction = new Vector3(0.0f, -0.707f, -0.707f);
+            //mainPassCB.Lights[2].Strength = new Vector3(0.15f);
+
+            Vector3 cityCenter = new Vector3(13.0f, 0.0f, 0.0f);
+            Vector3 moonPosition = new Vector3(-300.0f, 200.0f, -400.0f);
+
+            Vector3 moonDir = cityCenter - moonPosition;
+            moonDir.Normalize();
+            mainPassCB.AmbientLight = new Vector4(0.04f, 0.04f, 0.08f, 1.0f);
+
+            mainPassCB.Lights[0].Direction = Vector3.Normalize(new Vector3(0.25f, -1.0f, 0.3f));
+            mainPassCB.Lights[0].Strength = new Vector3(0.15f, 0.15f, 0.20f);
+
+            mainPassCB.Lights[1].Direction = Vector3.Normalize(new Vector3(-0.2f, -0.6f, 0.1f));
+            mainPassCB.Lights[1].Strength = new Vector3(0.1f, 0.1f, 0.08f);
+
+            mainPassCB.Lights[2].Direction = Vector3.Normalize(new Vector3(0.0f, -0.7f, -0.5f));
+            mainPassCB.Lights[2].Strength = new Vector3(0.1f, 0.1f, 0.1f);
+
+            // clear remaining lights
+            for (int i = 3; i < mainPassCB.Lights.Length; i++)
+            {
+                mainPassCB.Lights[i].Strength = Vector3.Zero;
+                mainPassCB.Lights[i].Direction = Vector3.Zero;
+                mainPassCB.Lights[i].Position = Vector3.Zero;
+                mainPassCB.Lights[i].FalloffStart = 1.0f;
+                mainPassCB.Lights[i].FalloffEnd = 10.0f;
+                mainPassCB.Lights[i].SpotPower = 1.0f;
+            }
+
+            // add a few lamp lights
+            int lampCount = System.Math.Min(streetLampLightPositions.Count, mainPassCB.Lights.Length - 3);
+
+            for (int i = 0; i < lampCount; i++)
+            {
+                int lightIndex = 3 + i;
+
+                mainPassCB.Lights[lightIndex].Strength = new Vector3(1.8f, 1.6f, 1.2f);
+                mainPassCB.Lights[lightIndex].Position = streetLampLightPositions[i];
+                mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, -1.0f, 0.0f);
+                mainPassCB.Lights[lightIndex].FalloffStart = 1.0f;
+                mainPassCB.Lights[lightIndex].FalloffEnd = 12.0f;
+                mainPassCB.Lights[lightIndex].SpotPower = 32.0f;
+            }
 
             CurrentFrameResource.PassCB.CopyData(0, ref mainPassCB);
         }
@@ -328,6 +375,7 @@ namespace ProiectSPG
             AddTexture("water", "water.dds");//14
             AddTexture("riverWalls", "riverWalls.dds");//15
             AddTexture("wood", "wood.dds");//16
+            AddTexture("moon", "moon.dds"); //17
 
         }
 
@@ -394,7 +442,8 @@ namespace ProiectSPG
                 textures["terrain"].Resource,
                 textures["water"].Resource,
                 textures["riverWalls"].Resource,
-                textures["wood"].Resource
+                textures["wood"].Resource,
+                textures["moon"].Resource
             };
             Resource skyTexture = textures["skyCubeMap"].Resource;
 
@@ -429,7 +478,7 @@ namespace ProiectSPG
             shaderResourceViewDescription.Format = skyTexture.Description.Format;
             Device.CreateShaderResourceView(skyTexture, shaderResourceViewDescription, cpuDescriptor);
 
-            skyTexHeapIndex = 16;
+            skyTexHeapIndex = 17;
         }
 
         private void CreateShadersAndInputLayout()
@@ -439,6 +488,9 @@ namespace ProiectSPG
 
             shaders["skyVS"] = D3DHelper.CompileShader("Shaders\\Sky.hlsl", "VS", "vs_5_1");
             shaders["skyPS"] = D3DHelper.CompileShader("Shaders\\Sky.hlsl", "PS", "ps_5_1");
+
+            //shaders["moonVS"] = D3DHelper.CompileShader("Shaders\\Moon.hlsl", "VS", "vs_5_1");
+            //shaders["moonPS"] = D3DHelper.CompileShader("Shaders\\Moon.hlsl", "PS", "ps_5_1");
 
             inputLayout = new InputLayoutDescription(new[]
             {
@@ -463,9 +515,10 @@ namespace ProiectSPG
             SubmeshGeometry grassGrid = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 0f, 3.0f, 3), vertices, indices);
             SubmeshGeometry pavementGrid = AppendMeshData(GeometryGenerator.CreateGrid(6.0f, 250.0f, 10, 10), vertices, indices);
             SubmeshGeometry roofBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 0.5f, 3.0f, 3), vertices, indices);
-            SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(200.0f, 200.0f, 100, 100), vertices, indices);
+            SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(200.0f, 250.0f, 100, 100), vertices, indices);
             SubmeshGeometry riverGrid = AppendMeshData(GeometryGenerator.CreateGrid(10.0f, 250.0f, 20, 80), vertices, indices);
             SubmeshGeometry houseBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 8.0f, 5.0f, 3), vertices, indices);
+          
 
             var geo = MeshGeometry.New(Device, CommandList, vertices, indices.ToArray(), "shapeGeo");
 
@@ -479,7 +532,7 @@ namespace ProiectSPG
             geo.DrawArguments["terrainGrid"] = terrainGrid;
             geo.DrawArguments["riverGrid"] = riverGrid;
             geo.DrawArguments["houseBox"] = houseBox;
-
+          
             geometries[geo.Name] = geo;
         }
 
@@ -556,6 +609,13 @@ namespace ProiectSPG
             skyPipelineStateDescription.VertexShader = shaders["skyVS"];
             skyPipelineStateDescription.PixelShader = shaders["skyPS"];
             pipelineStates["sky"] = Device.CreateGraphicsPipelineState(skyPipelineStateDescription);
+
+
+            //// Pipeline State for moon.
+            //GraphicsPipelineStateDescription moonPipelineStateDescription = opaquePipelineStateDescription.Copy();
+            //moonPipelineStateDescription.VertexShader = shaders["moonVS"];
+            //moonPipelineStateDescription.PixelShader = shaders["moonPS"];
+            //pipelineStates["moon"] = Device.CreateGraphicsPipelineState(moonPipelineStateDescription);
         }
 
         private void CreateFrameResources()
@@ -681,7 +741,7 @@ namespace ProiectSPG
             {
                 Name = "sky",
                 MaterialConstantBufferIndex = 12,
-                DiffuseSrvHeapIndex = 16,
+                DiffuseSrvHeapIndex = 18,
                 DiffuseAlbedo = Vector4.One,
                 FresnelR0 = new Vector3(0.1f),
                 Roughness = 1.0f
@@ -741,6 +801,16 @@ namespace ProiectSPG
                 FresnelR0 = new Vector3(0.05f),
                 Roughness = 0.2f
             });
+
+            AddMaterial(new Material
+            {
+                Name = "moonMaterial",
+                MaterialConstantBufferIndex = 19,
+                DiffuseSrvHeapIndex = 17,
+                DiffuseAlbedo = new Vector4(3.0f, 2.9f, 2.5f, 1.0f),
+                FresnelR0 = new Vector3(0.02f),
+                Roughness = 0.05f
+            });
         }
 
         private void AddMaterial(Material material)
@@ -762,6 +832,16 @@ namespace ProiectSPG
             world: Matrix.Translation(13.0f, -0.2f, 0.0f),
             textureTransform: Matrix.Scaling(12.0f, 12.0f, 1.0f)
             );
+           AddRenderItem(RenderLayer.Sky, objectCBIndex++, "sky", "shapeGeo", "sphere", world: Matrix.Scaling(5000.0f));
+            AddRenderItem(
+   // RenderLayer.Moon,
+   RenderLayer.Opaque,
+    objectCBIndex++,
+    "moonMaterial",
+    "shapeGeo",
+    "sphere",
+    world: Matrix.Scaling(40.0f, 40.0f, 40.0f) * Matrix.Translation(-300.0f, 200.0f, -400.0f)
+);
 
             AddRenderItem(RenderLayer.Sky, objectCBIndex++, "sky", "shapeGeo", "sphere", world: Matrix.Scaling(5000.0f));
             objectCBIndex = CreateHouses(objectCBIndex);
@@ -808,7 +888,7 @@ namespace ProiectSPG
 
         private int CreateHouses(int objectCBIndex)
         {
-            for (int i = 0; i < 6; ++i)
+            for (int i = 0; i < 5; ++i)
             {
                 //there are 4 rows with buildings
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
@@ -816,7 +896,7 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "house1Material", "shapeGeo", "houseBox",
                    world: Matrix.Translation(7.3f, 4.0f, -60.0f + i * 40.0f));
              
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "houseBox",
+                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house2Material", "shapeGeo", "box",
                    world: Matrix.Translation(+19.0f, 4.0f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "house4Material", "shapeGeo", "box",
                   world: Matrix.Translation(+32.5f, 4.0f, -60.0f + i * 40.0f));
@@ -1012,15 +1092,15 @@ namespace ProiectSPG
         private int CreateRiverMargins(int objectCBIndex)
         {
             // left margin
-            AddRenderItem( RenderLayer.Opaque,objectCBIndex++,"terrainMaterial","shapeGeo","pavementGrid",
+            AddRenderItem( RenderLayer.Opaque,objectCBIndex++,"terrainMaterial","shapeGeo","grid",
                 world: Matrix.Scaling(0.7f, 7.0f, 1.0f) * Matrix.Translation(8.0f, -0.05f, 0.0f),
                 textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
             );
 
             // right margin
-            AddRenderItem(RenderLayer.Opaque, objectCBIndex++,"terrainMaterial","shapeGeo","pavementGrid",
-                world: Matrix.Scaling(0.7f, 6.0f, 7.0f) * Matrix.Translation(18.0f, -0.05f, 5.0f),
-                textureTransform: Matrix.Scaling(1.0f, 80.0f, 800.0f)
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++,"terrainMaterial","shapeGeo","grid",
+                world: Matrix.Scaling(0.7f, 7.0f, 1.0f) * Matrix.Translation(18.0f, -0.05f, 0.0f),
+                textureTransform: Matrix.Scaling(1.0f, 80.0f, 80.0f)
             ); 
 
             return objectCBIndex;
@@ -1035,7 +1115,7 @@ namespace ProiectSPG
                 "riverWallsMaterial",
                 "shapeGeo",
                 "box",
-                world: Matrix.Scaling(0.1f, 0.1f, 250.0f) *
+                world: Matrix.Scaling(0.1f, 0.1f, 80.0f) *
                Matrix.Translation(9.8f, 0.1f, 0.0f),
                textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
             );
@@ -1047,74 +1127,55 @@ namespace ProiectSPG
                 "riverWallsMaterial",
                 "shapeGeo",
                 "box",
-               world: Matrix.Scaling(0.1f, 0.1f, 250.0f) *
+               world: Matrix.Scaling(0.1f, 0.1f, 80.0f) *
                Matrix.Translation(16.2f, 0.1f, 0.0f),
-               textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
+               textureTransform: Matrix.Scaling(1.0f, 80.0f, 800.0f)
             );
 
             return objectCBIndex;
         }
-       
+
+        
+        private int CreateBridge(int objectCBIndex, float x, float y, float z)
+        {
+            // deck
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "woodMaterial", "shapeGeo", "roofBox",
+                world: Matrix.Scaling(4.0f, 0.8f, 1.0f) *
+                       Matrix.Translation(x, y, z),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            // left rail
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "woodMaterial", "shapeGeo", "roofBox",
+                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
+                       Matrix.Translation(x, y + 0.35f, z - 1.35f),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            // right rail
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "woodMaterial", "shapeGeo", "roofBox",
+                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
+                       Matrix.Translation(x, y + 0.35f, z + 1.35f),
+                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
+            );
+
+            return objectCBIndex;
+        }
+
         private int CreateBridges(int objectCBIndex)
         {
             float bridgeX = 13.0f;
             float bridgeY = 0.35f;
 
-            
-            // Bridge 1
-            
-            float z1 = -12.0f;
-
-            // deck
-            AddRenderItem(RenderLayer.Opaque, objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
-               world: Matrix.Scaling(4.0f, 0.8f, 1.0f) *
-                       Matrix.Translation(bridgeX, bridgeY, z1),
-                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
-            );
-
-            // left rail
-            AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"woodMaterial", "shapeGeo","roofBox",
-                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
-                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z1 - 1.35f),
-                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
-            );
-
-            // right rail
-            AddRenderItem(RenderLayer.Opaque, objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
-                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
-                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z1 + 1.35f),
-                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
-            );
-
-            
-            // Bridge 2
-            
-            float z2 = 12.0f;
-
-            // deck
-            AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"woodMaterial","shapeGeo", "roofBox",
-                world: Matrix.Scaling(4.0f, 0.8f, 1.0f) *
-                       Matrix.Translation(bridgeX, bridgeY, z2),
-                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
-            );
-
-            // left rail
-            AddRenderItem( RenderLayer.Opaque,objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
-                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
-                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z2 - 1.35f),
-                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
-            );
-
-            // right rail
-            AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"woodMaterial","shapeGeo","roofBox",
-                world: Matrix.Scaling(4.0f, 0.4f, 0.12f) *
-                       Matrix.Translation(bridgeX, bridgeY + 0.35f, z2 + 1.35f),
-                textureTransform: Matrix.Scaling(4.0f, 1.0f, 1.0f)
-            );
+            objectCBIndex = CreateBridge(objectCBIndex, bridgeX, bridgeY, -36.0f);
+            objectCBIndex = CreateBridge(objectCBIndex, bridgeX, bridgeY, -12.0f);
+            objectCBIndex = CreateBridge(objectCBIndex, bridgeX, bridgeY, 12.0f);
+            objectCBIndex = CreateBridge(objectCBIndex, bridgeX, bridgeY, 36.0f);
+            objectCBIndex = CreateBridge(objectCBIndex, bridgeX, bridgeY, -52.0f);
+            objectCBIndex = CreateBridge(objectCBIndex, bridgeX, bridgeY, 52.0f);
 
             return objectCBIndex;
         }
-
         private int CreateStreetLamp(int objectCBIndex, float x, float z)
         {
             // base
@@ -1160,6 +1221,7 @@ namespace ProiectSPG
                 world: Matrix.Scaling(0.05f, 0.05f, 0.05f) *
                        Matrix.Translation(x + 0.75f, 2.85f, z)
             );
+            streetLampLightPositions.Add(new Vector3(x + 0.75f, 2.85f, z));
 
             return objectCBIndex;
         }
@@ -1195,6 +1257,7 @@ namespace ProiectSPG
 
 
             }
+         
             return objectCBIndex;
         }
         private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
@@ -1217,6 +1280,53 @@ namespace ProiectSPG
             allRenderItems.Add(renderItem);
         }
 
+    //WALK
+  private void OnKeyboardInput(GameTimer gameTimer)
+        {
+            float dt = gameTimer.DeltaTime;
+
+            if (IsKeyDown(Keys.W) || IsKeyDown(Keys.Up))
+            {
+                camera.Walk(10.0f * dt);
+            }
+            if (IsKeyDown(Keys.S) || IsKeyDown(Keys.Down))
+            {
+                camera.Walk(-10.0f * dt);
+            }
+            if (IsKeyDown(Keys.A) || IsKeyDown(Keys.Left))
+            {
+                camera.Strafe(-10.0f * dt);
+            }
+            if (IsKeyDown(Keys.D) || IsKeyDown(Keys.Right))
+            {
+                camera.Strafe(10.0f * dt);
+            }
+
+            // reset camera
+            if (IsKeyDown(Keys.R))
+            {
+                camera.Position = new Vector3(0.0f, 2.0f, -115.0f);
+            }
+
+            camera.UpdateViewMatrix();
+        }
+
+        //MOUSE
+
+        protected override void OnMouseMove(MouseButtons button, Point location)
+        {
+            if ((button & MouseButtons.Left) != 0)
+            {
+                // Make each pixel correspond to a quarter of a degree.
+                float dx = MathUtil.DegreesToRadians(0.25f * (location.X - lastMousePosition.X));
+                float dy = MathUtil.DegreesToRadians(0.25f * (location.Y - lastMousePosition.Y));
+
+                camera.Pitch(dy);
+                camera.RotateY(dx);
+            }
+
+            lastMousePosition = location;
+        }
 
         private void DrawRenderItems(GraphicsCommandList cmdList, IList<RenderItem> renderItems)
         {
