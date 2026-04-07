@@ -118,6 +118,8 @@ namespace ProiectSPG
                 CurrentFenceEvent.WaitOne();
             }
 
+
+            AnimateWaterMaterial(gameTimer);
             UpdateObjectCBs();
             UpdateMaterialBuffer();
             UpdateMainPassCB(gameTimer);
@@ -518,7 +520,8 @@ namespace ProiectSPG
             SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(200.0f, 250.0f, 100, 100), vertices, indices);
             SubmeshGeometry riverGrid = AppendMeshData(GeometryGenerator.CreateGrid(10.0f, 250.0f, 20, 80), vertices, indices);
             SubmeshGeometry houseBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 8.0f, 5.0f, 3), vertices, indices);
-          
+            SubmeshGeometry smallStreetGrid = AppendMeshData(GeometryGenerator.CreateGrid(30.0f, 5.5f, 4, 2), vertices, indices);
+
 
             var geo = MeshGeometry.New(Device, CommandList, vertices, indices.ToArray(), "shapeGeo");
 
@@ -532,7 +535,9 @@ namespace ProiectSPG
             geo.DrawArguments["terrainGrid"] = terrainGrid;
             geo.DrawArguments["riverGrid"] = riverGrid;
             geo.DrawArguments["houseBox"] = houseBox;
-          
+            geo.DrawArguments["smallStreetGrid"] = smallStreetGrid;
+
+
             geometries[geo.Name] = geo;
         }
 
@@ -857,13 +862,38 @@ namespace ProiectSPG
             objectCBIndex = CreateBridges(objectCBIndex);
             objectCBIndex = CreateStreetLamps(objectCBIndex);
         }
-
+       
         private int CreateStreets(int objectCBIndex)
         {
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "grid",
                 textureTransform: Matrix.Scaling(1.0f, 20.0f, 2.0f));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "grid",
                 textureTransform: Matrix.Scaling(1.0f, 20.0f, 2.0f), world: Matrix.Translation(26.0f, 0.0f, 0));
+          
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "grid",
+                textureTransform: Matrix.Scaling(1.0f, 20.0f, 2.0f), world: Matrix.Translation(-26.0f, 0.0f, 0));
+           
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "grid",
+                textureTransform: Matrix.Scaling(1.0f, 20.0f, 2.0f), world: Matrix.Translation(52.0f, 0.0f, 0));
+
+
+            // left side pair: between -26 and 0
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
+                world: Matrix.Translation(-14.0f, 0.01f, -35.0f),
+                textureTransform: Matrix.Identity);
+
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
+                world: Matrix.Translation(-14.0f, 0.01f, 35.0f),
+                textureTransform: Matrix.Identity);
+
+            // right side pair: between 26 and 52
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
+                world: Matrix.Translation(39.0f, 0.01f, -35.0f),
+                textureTransform: Matrix.Identity);
+
+            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
+                world: Matrix.Translation(39.0f, 0.01f, 35.0f),
+                textureTransform: Matrix.Identity);
 
             return objectCBIndex;
         }
@@ -879,9 +909,9 @@ namespace ProiectSPG
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
                 textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(32.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(-12.5f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) *  Matrix.Translation(-13.0f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(38.5f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) * Matrix.Translation(39f, 0.0f, 0));
 
             return objectCBIndex;
         }
@@ -930,14 +960,14 @@ namespace ProiectSPG
         {
             for (int i = 0; i < 5; ++i)
             {
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(-7.0f, 1.5f, -87.9f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
+                //    world: Matrix.Translation(-7.0f, 1.5f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+7.0f, 1.5f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+19.0f, 1.5f, -87.9f + i * 40.0f));
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(+32.5f, 1.5f, -87.9f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
+                //    world: Matrix.Translation(+32.5f, 1.5f, -87.9f + i * 40.0f));
 
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(-7.0f, 1.5f, -80.0f + i * 40.0f));
@@ -948,14 +978,14 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
                    world: Matrix.Translation(+32.5f, 1.5f, -80.0f + i * 40.0f));
 
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(-7.0f, 1.5f, -72.0f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
+                //    world: Matrix.Translation(-7.0f, 1.5f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+7.0f, 1.5f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+19.0f, 1.5f, -72.0f + i * 40.0f));
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
-                   world: Matrix.Translation(+32.5f, 1.5f, -72.0f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
+                //   world: Matrix.Translation(+32.5f, 1.5f, -72.0f + i * 40.0f));
 
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(-7.0f, 1.5f, -64.0f + i * 40.0f));
@@ -976,25 +1006,40 @@ namespace ProiectSPG
                     world: Matrix.Translation(+32.5f, 1.5f, -55.8f + i * 40.0f));
             }
 
-            for(int i = 0; i < 70; i++)
+            // part 1
+            for (int i = 0; i < 15; i++)
             {
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(-12.5f, 1.5f, -95.8f + i * 3.0f));
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(-12.5f, 1.5f, -95.8f + i * 3.0f));
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(-12.5f, 1.5f, -95.8f + i * 3.0f));
-                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(-12.5f, 1.5f, -95.8f + i * 3.0f));
+                float z = -120.8f + i * 5.0f;
 
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                   world: Matrix.Translation(38.5f, 1.5f, -95.8f + i * 3.0f));
+                    world: Matrix.Translation(-12.5f, 1.5f, z));
+
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(38.5f, 1.5f, -95.8f + i * 3.0f));
+                    world: Matrix.Translation(38.5f, 1.5f, z));
+            }
+
+            // part 2
+            for (int i = 0; i < 10; i++)
+            {
+                float z = -25.0f + i * 5.0f;
+
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(38.5f, 1.5f, -95.8f + i * 3.0f));
+                    world: Matrix.Translation(-12.0f, 1.5f, z));
+
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
-                    world: Matrix.Translation(38.5f, 1.5f, -95.8f + i * 3.0f));
+                    world: Matrix.Translation(38.5f, 1.5f, z));
+            }
+
+            // part 3
+            for (int i = 0; i <15; i++)
+            {
+                float z = 40.0f + i * 5.0f;
+
+                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
+                    world: Matrix.Translation(-12.5f, 1.5f, z));
+
+                AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
+                    world: Matrix.Translation(38.5f, 1.5f, z));
             }
             return objectCBIndex;
         }
@@ -1003,14 +1048,14 @@ namespace ProiectSPG
         {
             for (int i = 0; i < 5; ++i)
             {
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(-7.0f, 0.1f, -87.9f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
+                //    world: Matrix.Translation(-7.0f, 0.1f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+7.0f, 0.1f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+19.0f, 0.1f, -87.9f + i * 40.0f));
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(+32.5f, 0.1f, -87.9f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
+                //    world: Matrix.Translation(+32.5f, 0.1f, -87.9f + i * 40.0f));
 
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(-7.0f, 0.1f, -80.0f + i * 40.0f));
@@ -1021,14 +1066,14 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+32.5f, 0.1f, -80.0f + i * 40.0f));
 
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(-7.0f, 0.1f, -72.0f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
+                //    world: Matrix.Translation(-7.0f, 0.1f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+7.0f, 0.1f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+19.0f, 0.1f, -72.0f + i * 40.0f));
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(+32.5f, 0.1f, -72.0f + i * 40.0f));
+                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
+                //    world: Matrix.Translation(+32.5f, 0.1f, -72.0f + i * 40.0f));
 
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(-7.0f, 0.1f, -64.0f + i * 40.0f));
@@ -1049,25 +1094,39 @@ namespace ProiectSPG
                     world: Matrix.Translation(+32.5f, 0.1f, -55.8f + i * 40.0f));
             }
 
-            for(int i = 0; i < 70; i++)
+           
+            // part 1
+            for (int i = 0; i < 15; i++)
             {
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(-12.5f, 0.1f, -95.8f + i * 3.0f));
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(-12.5f, 0.1f, -95.8f + i * 3.0f));
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(-12.5f, 0.1f, -95.8f + i * 3.0f));
-                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(-12.5f, 0.1f, -95.8f + i * 3.0f));
+                float z = -120.8f + i * 5.0f;
 
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                   world: Matrix.Translation(38.5f, 0.1f, -95.8f + i * 3.0f));
+                      world: Matrix.Translation(-12.5f, 0.1f, z));
+
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(38.5f, 0.1f, -95.8f + i * 3.0f));
+                     world: Matrix.Translation(38.5f, 0.1f, z));
+            }
+
+            // part 2
+            for (int i = 0; i < 10; i++)
+            {
+                float z = -25.0f + i * 5.0f;
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(38.5f, 0.1f, -95.8f + i * 3.0f));
+                    world: Matrix.Translation(-12.5f, 0.1f, z));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(38.5f, 0.1f, -95.8f + i * 3.0f));
+                    world: Matrix.Translation(38.5f, 1.5f, z));
+            }
+
+            // part 3
+            for (int i = 0; i < 15; i++)
+            {
+                float z = 40.0f + i * 5.0f;
+
+                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
+                     world: Matrix.Translation(-12.5f, 0.1f, z));
+
+                AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
+                    world: Matrix.Translation(38.5f, 0.1f, z));
             }
 
             return objectCBIndex;
@@ -1085,10 +1144,24 @@ namespace ProiectSPG
                 "riverGrid",
                 world: Matrix.Translation(13.0f, -0.15f, 0.0f),
                 textureTransform: Matrix.Scaling(3.0f, 25.0f, 1.0f));
-
+            
             return objectCBIndex;
         }
-      
+
+        private void AnimateWaterMaterial(GameTimer gameTimer)
+        {
+            Material waterMat = materials["waterMaterial"];
+
+            float uOffset = 0.0f;
+            float vOffset = (float)(0.2f * gameTimer.TotalTime); // flow speed
+
+            waterMat.MatTransform =
+                Matrix.Scaling(1.0f, 3.0f, 1.0f) *
+                Matrix.Translation(uOffset, vOffset, 0.0f);
+
+            waterMat.NumberOfFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+        }
+
         private int CreateRiverMargins(int objectCBIndex)
         {
             // left margin
@@ -1280,37 +1353,61 @@ namespace ProiectSPG
             allRenderItems.Add(renderItem);
         }
 
-    //WALK
-  private void OnKeyboardInput(GameTimer gameTimer)
+
+        private void OnKeyboardInput(GameTimer gameTimer)
         {
             float dt = gameTimer.DeltaTime;
+            float moveSpeed = 10.0f * dt;
+            float rollSpeed = 1.5f * dt;
 
             if (IsKeyDown(Keys.W) || IsKeyDown(Keys.Up))
             {
-                camera.Walk(10.0f * dt);
+                camera.Walk(moveSpeed);
             }
             if (IsKeyDown(Keys.S) || IsKeyDown(Keys.Down))
             {
-                camera.Walk(-10.0f * dt);
+                camera.Walk(-moveSpeed);
             }
             if (IsKeyDown(Keys.A) || IsKeyDown(Keys.Left))
             {
-                camera.Strafe(-10.0f * dt);
+                camera.Strafe(-moveSpeed);
             }
             if (IsKeyDown(Keys.D) || IsKeyDown(Keys.Right))
             {
-                camera.Strafe(10.0f * dt);
+                camera.Strafe(moveSpeed);
             }
 
-            // reset camera
+            // move up/down on Y axis
+            if (IsKeyDown(Keys.Q))
+            {
+                camera.Rise(moveSpeed);
+            }
+            if (IsKeyDown(Keys.E))
+            {
+                camera.Rise(-moveSpeed);
+            }
+
+            // optional roll
+            if (IsKeyDown(Keys.Z))
+            {
+                camera.Roll(-rollSpeed);
+            }
+            if (IsKeyDown(Keys.C))
+            {
+                camera.Roll(rollSpeed);
+            }
+
             if (IsKeyDown(Keys.R))
             {
-                camera.Position = new Vector3(0.0f, 2.0f, -115.0f);
+                camera.LookAt(
+                    new Vector3(-40.0f, 25.0f, -100.0f),
+                    new Vector3(40.0f, -10.0f, 13.0f),
+                    Vector3.UnitY
+                );
             }
 
             camera.UpdateViewMatrix();
         }
-
         //MOUSE
 
         protected override void OnMouseMove(MouseButtons button, Point location)
@@ -1393,6 +1490,10 @@ namespace ProiectSPG
         };
     }
 
+
+
+
+   
 
     }
 

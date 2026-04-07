@@ -16,7 +16,17 @@ namespace ProiectSPG
             SetLens(MathUtil.PiOverFour, 1.0f, 1.0f, 1000.0f);
         }
 
-        public Vector3 Position { get; set; }
+        //public Vector3 Position { get; set; }
+        private Vector3 position;
+        public Vector3 Position
+        {
+            get => position;
+            set
+            {
+                position = value;
+                viewDirty = true;
+            }
+        }
         public Vector3 Right { get; private set; } = Vector3.UnitX;
         public Vector3 Up { get; private set; } = Vector3.UnitY;
         public Vector3 Look { get; private set; } = Vector3.UnitZ;
@@ -33,7 +43,21 @@ namespace ProiectSPG
         public Matrix View { get; private set; } = Matrix.Identity;
         public Matrix Proj { get; private set; } = Matrix.Identity;
 
+        public void Rise(float d)
+        {
+            Position += Vector3.UnitY * d;
+            viewDirty = true;
+        }
 
+        public void Roll(float angle)
+        {
+            Matrix r = Matrix.RotationAxis(Look, angle);
+
+            Right = Vector3.TransformNormal(Right, r);
+            Up = Vector3.TransformNormal(Up, r);
+
+            viewDirty = true;
+        }
         /// <summary>
         /// This method controls our view. We cache the frustum properties and build the projection matrix.
         /// </summary>
@@ -131,6 +155,9 @@ namespace ProiectSPG
 
             viewDirty = false;
         }
+
+
+
         public void LookAt(Vector3 pos, Vector3 target, Vector3 up)
         {
             Position = pos;
@@ -143,6 +170,7 @@ namespace ProiectSPG
             Up = yaxis;
             Look = zaxis;
 
+            viewDirty = true;
             UpdateViewMatrix();
         }
     }
