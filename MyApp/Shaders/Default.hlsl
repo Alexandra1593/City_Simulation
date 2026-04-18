@@ -8,21 +8,22 @@
 #endif
 
 #ifndef NUM_POINT_LIGHTS
-    #define NUM_POINT_LIGHTS 0
+    #define NUM_POINT_LIGHTS 40
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
-    #define NUM_SPOT_LIGHTS 40
+    #define NUM_SPOT_LIGHTS 0
 #endif
 
 // Include common HLSL code.
-#include "Shaders\Common.hlsl"
+#include "Common.hlsl"   
 
 struct VertexIn
 {
     float3 PosL    : POSITION;
     float3 NormalL : NORMAL;
     float2 TexC    : TEXCOORD;
+   
 };
 
 struct VertexOut
@@ -31,6 +32,7 @@ struct VertexOut
     float3 PosW    : POSITION;
     float3 NormalW : NORMAL;
     float2 TexC    : TEXCOORD;
+    float4 ShadowPosH : TEXCOORD1;
 };
 
 VertexOut VS(VertexIn vin)
@@ -54,8 +56,37 @@ VertexOut VS(VertexIn vin)
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
     vout.TexC = mul(texC, matData.MatTransform).xy;
 
+    
+    
+    vout.ShadowPosH = mul(posW, gShadowTransform);
+    
+    
     return vout;
 }
+float CalcShadowFactor(float4 shadowPosH)
+{
+    shadowPosH.xyz /= shadowPosH.w;
+
+    float2 shadowTexC = shadowPosH.xy;
+    float depth = shadowPosH.z;
+
+    if (shadowTexC.x < 0.0f || shadowTexC.x > 1.0f ||
+        shadowTexC.y < 0.0f || shadowTexC.y > 1.0f ||
+        depth < 0.0f || depth > 1.0f)
+    {
+        return 1.0f;
+    }
+
+    float shadowDepth = gShadowMap.Sample(gsamLinearClamp, shadowTexC).r;
+
+    float bias = 0.0005f;
+
+    if (depth - bias > shadowDepth)
+        return 0.25f;
+
+    return 1.0f;
+}
+
 
 float4 PS(VertexOut pin) : SV_Target
 {
@@ -76,29 +107,31 @@ float4 PS(VertexOut pin) : SV_Target
     float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
     // Light terms.
-    float4 ambient = gAmbientLight*diffuseAlbedo;
+    float4 ambient = gAmbientLight * diffuseAlbedo;
 
+    float shadow = CalcShadowFactor(pin.ShadowPosH);
     const float shininess = 1.0f - roughness;
     Material mat = { diffuseAlbedo, fresnelR0, shininess };
-    float3 shadowFactor = 1.0f;
-    float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
-        pin.NormalW, toEyeW, shadowFactor);
+    
+
+    float3 shadowFactor = float3(shadow, 1.0f, 1.0f);
+
+    float4 directLight = ComputeLighting(
+    gLights,
+    mat,
+    pin.PosW,
+    pin.NormalW,
+    toEyeW,
+    shadowFactor
+);
 
     float4 litColor = ambient + directLight;
 
-    // Add in specular reflections.
-    float3 r = reflect(-toEyeW, pin.NormalW);
-    float4 reflectionColor = gCubeMap.Sample(gsamLinearWrap, r);
-    float3 fresnelFactor = SchlickFresnel(fresnelR0, pin.NormalW, r);
-    litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
-
-    // Common convention to take alpha from diffuse albedo.
+    litColor.rgb = max(litColor.rgb, diffuseAlbedo.rgb * 0.25f);
     litColor.a = diffuseAlbedo.a;
-
-    if(mat.DiffuseAlbedo.r > 2.0f)
-{
-    return mat.DiffuseAlbedo;
-}
-
+    
+   // return float4(shadow, shadow, shadow, 1.0f);
+ 
+ 
     return litColor;
 }

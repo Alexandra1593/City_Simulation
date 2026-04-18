@@ -1,9 +1,11 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using SharpDX;
+﻿using SharpDX;
 using SharpDX.D3DCompiler;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D12;
+using System;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Windows.Forms;
 using Device = SharpDX.Direct3D12.Device;
 using Resource = SharpDX.Direct3D12.Resource;
 using ShaderBytecode = SharpDX.Direct3D12.ShaderBytecode;
@@ -58,20 +60,93 @@ namespace ProiectSPG
         // the lower 2 bytes which store all bits < 256.
         public static int ComputeConstantBufferByteSize<T>() where T : struct => (Marshal.SizeOf(typeof(T)) + 255) & ~255;
 
-        public static ShaderBytecode CompileShader(string fileName, string entryPoint, string profile, ShaderMacro[] defines = null)
+//        public static ShaderBytecode CompileShader(string fileName, string entryPoint, string profile, ShaderMacro[] defines = null)
+//        {
+//            var shaderFlags = ShaderFlags.None;
+
+//#if DEBUG
+//            shaderFlags |= ShaderFlags.Debug | ShaderFlags.SkipOptimization;
+//#endif
+
+//            using (var result = SharpDX.D3DCompiler.ShaderBytecode.CompileFromFile(
+//                fileName,
+//                entryPoint,
+//                profile,
+//                shaderFlags,
+//                EffectFlags.None,
+//                defines,
+//                FileIncludeHandler.Default))
+//            {
+//                if (result == null)
+//                {
+//                    throw new Exception(
+//                        $"Shader compile returned null.\nFile: {fileName}\nEntry: {entryPoint}\nProfile: {profile}");
+//                }
+
+//                if (result.HasErrors)
+//                {
+//                    throw new Exception(
+//                        $"Shader compilation failed.\nFile: {fileName}\nEntry: {entryPoint}\nProfile: {profile}\n\n{result.Message}");
+//                }
+
+//                if (result.Bytecode == null)
+//                {
+//                    throw new Exception(
+//                        $"Shader bytecode is null.\nFile: {fileName}\nEntry: {entryPoint}\nProfile: {profile}\n\n{result.Message}");
+//                }
+
+//                return result.Bytecode;
+//            }
+   //     }
+                public static ShaderBytecode CompileShader(string fileName, string entryPoint, string profile, ShaderMacro[] defines = null)
         {
             var shaderFlags = ShaderFlags.None;
+
 #if DEBUG
             shaderFlags |= ShaderFlags.Debug | ShaderFlags.SkipOptimization;
 #endif
-            CompilationResult result = SharpDX.D3DCompiler.ShaderBytecode.CompileFromFile(
-                fileName,
-                entryPoint,
-                profile,
-                shaderFlags,
-                include: FileIncludeHandler.Default,
-                defines: defines);
-            return new ShaderBytecode(result);
+
+            if (!System.IO.File.Exists(fileName))
+            {
+                throw new Exception($"Shader file not found: {fileName}");
+            }
+
+            try
+            {
+                var result = SharpDX.D3DCompiler.ShaderBytecode.CompileFromFile(
+                    fileName,
+                    entryPoint,
+                    profile,
+                    shaderFlags,
+                    EffectFlags.None,
+                    defines,
+                    FileIncludeHandler.Default
+                );
+
+                if (result == null)
+                {
+                    throw new Exception(
+                        $"Shader compilation returned null.\nFile: {fileName}\nEntry: {entryPoint}\nProfile: {profile}");
+                }
+
+                if (result.Bytecode == null)
+                {
+                    throw new Exception(
+                        $"Shader bytecode is null.\nFile: {fileName}\nEntry: {entryPoint}\nProfile: {profile}\n\nMessages:\n{result.Message}");
+                }
+
+                return new ShaderBytecode(result);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Shader compile failed.\n\nFile: {fileName}\nEntry: {entryPoint}\nProfile: {profile}\n\n{ex}",
+                    "Shader Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                throw;
+            }
         }
     }
 }

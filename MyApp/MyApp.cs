@@ -1,6 +1,7 @@
 ﻿using DX12GameProgramming.Enums;
 using ProiectSPG.Structs;
 using SharpDX;
+using SharpDX.Direct3D;
 using SharpDX.Direct3D12;
 using SharpDX.DXGI;
 using System.Collections.Generic;
@@ -30,6 +31,24 @@ namespace ProiectSPG
         private readonly IDictionary<string, Material> materials = new Dictionary<string, Material>();
         private readonly IDictionary<string, Texture> textures = new Dictionary<string, Texture>();
         private readonly List<Vector3> streetLampLightPositions = new List<Vector3>();
+
+
+
+
+        private Resource shadowMap = null;
+        private DescriptorHeap dsvHeapShadow = null;
+        private CpuDescriptorHandle shadowDsv;
+        private GpuDescriptorHandle shadowSrv;
+        private CpuDescriptorHandle shadowSrvCpu;
+
+        private ViewportF shadowViewport;
+        private Rectangle shadowScissorRect;
+
+        private Matrix lightView = Matrix.Identity;
+        private Matrix lightProj = Matrix.Identity;
+        private Matrix shadowTransform = Matrix.Identity;
+
+
 
 
         private InputLayoutDescription inputLayout;
@@ -79,6 +98,7 @@ namespace ProiectSPG
 
             LoadTextures();
             CreateRootSignature();
+            CreateShadowMap();
             CreateDescriptorHeaps();
             CreateShadersAndInputLayout();
             CreateShapeGeometries();
@@ -86,6 +106,7 @@ namespace ProiectSPG
             CreateRenderItems();
             CreateFrameResources();
             CreatePipelineStateObjects();
+            UpdateShadowTransform();
 
             // Execute the initialization commands.
             CommandList.Close();
@@ -99,7 +120,11 @@ namespace ProiectSPG
         {
             base.OnResize();
 
-            // The window resized, so update the aspect ratio and recompute the projection matrix.
+            // The window resized, so update the a
+            //
+            //
+            //
+            // t ratio and recompute the projection matrix.
             camera.SetLens(MathUtil.PiOverFour, AspectRatio, 1.0f, 1000.0f);
         }
 
@@ -127,17 +152,37 @@ namespace ProiectSPG
 
         protected override void Draw(GameTimer gameTimer)
         {
+
+
+
             CommandAllocator cmdListAlloc = CurrentFrameResource.CommandAllocator;
 
-            // Reuse the memory associated with command recording.
             cmdListAlloc.Reset();
 
-            // A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-            // Reusing the command list reuses memory.
             CommandList.Reset(cmdListAlloc, pipelineStates["opaque"]);
 
+
+        
+
+            // 1) first render scene into the shadow map
+            DrawSceneToShadowMap();
+
+            // 2) now switch back to the normal screen viewport
             CommandList.SetViewport(Viewport);
             CommandList.SetScissorRectangles(ScissorRectangle);
+
+            // 3) now render the normal scene to the back buffer
+            //CommandAllocator cmdListAlloc = CurrentFrameResource.CommandAllocator;
+
+            //// Reuse the memory associated with command recording.
+            //cmdListAlloc.Reset();
+
+            //// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+            //// Reusing the command list reuses memory.
+            //CommandList.Reset(cmdListAlloc, pipelineStates["opaque"]);
+
+            //CommandList.SetViewport(Viewport);
+            //CommandList.SetScissorRectangles(ScissorRectangle);
 
             // Indicate a state transition on the resource usage.
             CommandList.ResourceBarrierTransition(CurrentBackBuffer, ResourceStates.Present, ResourceStates.RenderTarget);
@@ -318,16 +363,16 @@ namespace ProiectSPG
 
             Vector3 moonDir = cityCenter - moonPosition;
             moonDir.Normalize();
-            mainPassCB.AmbientLight = new Vector4(0.04f, 0.04f, 0.08f, 1.0f);
+            mainPassCB.AmbientLight = new Vector4(0.25f, 0.25f, 0.25f, 1.0f);
 
-            mainPassCB.Lights[0].Direction = Vector3.Normalize(new Vector3(0.25f, -1.0f, 0.3f));
-            mainPassCB.Lights[0].Strength = new Vector3(0.15f, 0.15f, 0.20f);
+            mainPassCB.Lights[0].Direction = Vector3.Normalize(new Vector3(1.0f, -0.35f, 0.4f));
+            mainPassCB.Lights[0].Strength = new Vector3(0.9f, 0.9f, 1.0f);
 
-            mainPassCB.Lights[1].Direction = Vector3.Normalize(new Vector3(-0.2f, -0.6f, 0.1f));
-            mainPassCB.Lights[1].Strength = new Vector3(0.1f, 0.1f, 0.08f);
+            mainPassCB.Lights[1].Strength = new Vector3(0.05f, 0.05f, 0.05f);
+            mainPassCB.Lights[2].Strength = new Vector3(0.03f, 0.03f, 0.05f);
 
-            mainPassCB.Lights[2].Direction = Vector3.Normalize(new Vector3(0.0f, -0.7f, -0.5f));
-            mainPassCB.Lights[2].Strength = new Vector3(0.1f, 0.1f, 0.1f);
+            UpdateShadowTransform();
+
 
             // clear remaining lights
             for (int i = 3; i < mainPassCB.Lights.Length; i++)
@@ -340,23 +385,40 @@ namespace ProiectSPG
                 mainPassCB.Lights[i].SpotPower = 1.0f;
             }
 
-            // add a few lamp lights
+
+
             int lampCount = System.Math.Min(streetLampLightPositions.Count, mainPassCB.Lights.Length - 3);
 
             for (int i = 0; i < lampCount; i++)
             {
                 int lightIndex = 3 + i;
+                Vector3 lampPos = streetLampLightPositions[i];
 
-                mainPassCB.Lights[lightIndex].Strength = new Vector3(1.8f, 1.6f, 1.2f);
-                mainPassCB.Lights[lightIndex].Position = streetLampLightPositions[i];
-                mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, -1.0f, 0.0f);
+                mainPassCB.Lights[lightIndex].Position = lampPos;
+                mainPassCB.Lights[lightIndex].Strength = new Vector3(1.0f, 1.0f, 1.25f);
+                //mainPassCB.Lights[lightIndex].Strength = Vector3.Zero;
+                mainPassCB.Lights[lightIndex].FalloffEnd = 8.0f;
+
                 mainPassCB.Lights[lightIndex].FalloffStart = 1.0f;
-                mainPassCB.Lights[lightIndex].FalloffEnd = 12.0f;
-                mainPassCB.Lights[lightIndex].SpotPower = 32.0f;
+                //mainPassCB.Lights[lightIndex].FalloffEnd = 18.0f;
+
+                mainPassCB.Lights[lightIndex].Direction = Vector3.Zero;
+                mainPassCB.Lights[lightIndex].SpotPower = 0.0f;
             }
 
+
+
+            mainPassCB.LightView = Matrix.Transpose(lightView);
+            mainPassCB.LightProj = Matrix.Transpose(lightProj);
+            mainPassCB.ShadowTransform = Matrix.Transpose(shadowTransform);
+
             CurrentFrameResource.PassCB.CopyData(0, ref mainPassCB);
-        }
+            }
+
+
+
+
+
 
         private void LoadTextures()
         {
@@ -365,9 +427,9 @@ namespace ProiectSPG
             AddTexture("house3", "house3.dds"); //2
             AddTexture("house4", "house4.dds"); //3
             AddTexture("house5", "house5.dds"); //4
-            AddTexture("tree1", "treearray.dds");//5
-            AddTexture("tree2", "treeArray2.dds");//6
-            AddTexture("tree3", "tree02S.dds"); //7
+            AddTexture("tree1", "roses.dds");//5
+            AddTexture("tree2", "tree2.dds");//6
+            AddTexture("tree3", "tree.dds"); //7
             AddTexture("street", "street1.dds");//8
             AddTexture("grass", "grass.dds");//9
             AddTexture("pavement", "pavement.dds");//10
@@ -394,14 +456,22 @@ namespace ProiectSPG
 
         private void CreateRootSignature()
         {
+            //var slotRootParameters = new[]
+            //{
+            //    new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 0), RootParameterType.ConstantBufferView),
+            //    new RootParameter(ShaderVisibility.All, new RootDescriptor(1, 0), RootParameterType.ConstantBufferView),
+            //    new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 1), RootParameterType.ShaderResourceView),
+            //    new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 1, 0)),
+            //    new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 5, 1))
+            //};
             var slotRootParameters = new[]
-            {
-                new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 0), RootParameterType.ConstantBufferView),
-                new RootParameter(ShaderVisibility.All, new RootDescriptor(1, 0), RootParameterType.ConstantBufferView),
-                new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 1), RootParameterType.ShaderResourceView),
-                new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 1, 0)),
-                new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 5, 1))
-            };
+{
+    new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 0), RootParameterType.ConstantBufferView), // b0
+    new RootParameter(ShaderVisibility.All, new RootDescriptor(1, 0), RootParameterType.ConstantBufferView), // b1
+    new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 1), RootParameterType.ShaderResourceView), // t0 space1
+    new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 1, 0)),  // t0
+    new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 21, 1))  // t1..t20
+};
 
             // Create the root signature, which is an array of root parameters.
             var rootSignatureDescription = new RootSignatureDescription(
@@ -417,7 +487,7 @@ namespace ProiectSPG
             // Create the SRV heap.
             var srvHeapDescription = new DescriptorHeapDescription
             {
-                DescriptorCount = 20,
+                DescriptorCount = 22,
                 Type = DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView,
                 Flags = DescriptorHeapFlags.ShaderVisible
             };
@@ -481,6 +551,29 @@ namespace ProiectSPG
             Device.CreateShaderResourceView(skyTexture, shaderResourceViewDescription, cpuDescriptor);
 
             skyTexHeapIndex = 17;
+
+
+
+
+
+
+
+            var shadowSrvDesc = new ShaderResourceViewDescription
+            {
+                Shader4ComponentMapping = D3DHelper.DefaultShader4ComponentMapping,
+                Format = Format.R24_UNorm_X8_Typeless,
+                Dimension = ShaderResourceViewDimension.Texture2D,
+                Texture2D = new ShaderResourceViewDescription.Texture2DResource
+                {
+                    MostDetailedMip = 0,
+                    MipLevels = 1,
+                    ResourceMinLODClamp = 0.0f
+                }
+            };
+
+            CpuDescriptorHandle shadowSrvCpuHandle = srvDescriptorHeap.CPUDescriptorHandleForHeapStart;
+            shadowSrvCpuHandle += 20 * CbvSrvUavDescriptorSize; // choose free slot
+            Device.CreateShaderResourceView(shadowMap, shadowSrvDesc, shadowSrvCpuHandle);
         }
 
         private void CreateShadersAndInputLayout()
@@ -493,6 +586,10 @@ namespace ProiectSPG
 
             //shaders["moonVS"] = D3DHelper.CompileShader("Shaders\\Moon.hlsl", "VS", "vs_5_1");
             //shaders["moonPS"] = D3DHelper.CompileShader("Shaders\\Moon.hlsl", "PS", "ps_5_1");
+
+            shaders["shadowVS"] = D3DHelper.CompileShader("Shaders\\Shadow.hlsl", "VS", "vs_5_1");
+            //shaders["shadowPS"] = D3DHelper.CompileShader("Shaders\\Shadow.hlsl", "PS", "ps_5_1");
+
 
             inputLayout = new InputLayoutDescription(new[]
             {
@@ -520,7 +617,13 @@ namespace ProiectSPG
             SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(200.0f, 250.0f, 100, 100), vertices, indices);
             SubmeshGeometry riverGrid = AppendMeshData(GeometryGenerator.CreateGrid(10.0f, 250.0f, 20, 80), vertices, indices);
             SubmeshGeometry houseBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 8.0f, 5.0f, 3), vertices, indices);
-            SubmeshGeometry smallStreetGrid = AppendMeshData(GeometryGenerator.CreateGrid(30.0f, 5.5f, 4, 2), vertices, indices);
+            SubmeshGeometry smallStreetGrid = AppendMeshData(GeometryGenerator.CreateGrid(22.0f, 5.5f, 4, 2), vertices, indices);
+
+            SubmeshGeometry carBody = AppendMeshData(GeometryGenerator.CreateBox(1.6f, 0.7f, 6.4f, 0), vertices, indices);
+            SubmeshGeometry carCabin = AppendMeshData(GeometryGenerator.CreateBox(0.6f, 0.7f, 2.5f, 0), vertices, indices);
+            SubmeshGeometry wheel = AppendMeshData(GeometryGenerator.CreateCylinder(0.35f, 0.35f, 0.25f, 20, 20), vertices, indices);
+            SubmeshGeometry headlight = AppendMeshData(GeometryGenerator.CreateSphere(0.12f, 16, 16), vertices, indices);
+
 
 
             var geo = MeshGeometry.New(Device, CommandList, vertices, indices.ToArray(), "shapeGeo");
@@ -536,7 +639,10 @@ namespace ProiectSPG
             geo.DrawArguments["riverGrid"] = riverGrid;
             geo.DrawArguments["houseBox"] = houseBox;
             geo.DrawArguments["smallStreetGrid"] = smallStreetGrid;
-
+            geo.DrawArguments["carBody"] = carBody;
+            geo.DrawArguments["carCabin"] = carCabin;
+            geo.DrawArguments["wheel"] = wheel;
+            geo.DrawArguments["headlight"] = headlight; 
 
             geometries[geo.Name] = geo;
         }
@@ -615,6 +721,30 @@ namespace ProiectSPG
             skyPipelineStateDescription.PixelShader = shaders["skyPS"];
             pipelineStates["sky"] = Device.CreateGraphicsPipelineState(skyPipelineStateDescription);
 
+
+
+            //// Pipeline State for shadow.
+            GraphicsPipelineStateDescription shadowPsoDesc = new GraphicsPipelineStateDescription
+            {
+                InputLayout = inputLayout,
+                RootSignature = rootSignature,
+                VertexShader = shaders["shadowVS"],
+                PixelShader = default(ShaderBytecode), // no PS
+                RasterizerState = RasterizerStateDescription.Default(),
+                BlendState = BlendStateDescription.Default(),
+                DepthStencilState = DepthStencilStateDescription.Default(),
+                SampleMask = unchecked((int)uint.MaxValue),
+                PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
+                RenderTargetCount = 0,
+                SampleDescription = new SampleDescription(1, 0),
+                DepthStencilFormat = Format.D24_UNorm_S8_UInt
+            };
+
+            shadowPsoDesc.RasterizerState.DepthBias = 0;
+            shadowPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
+            shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+
+            pipelineStates["shadow"] = Device.CreateGraphicsPipelineState(shadowPsoDesc);
 
             //// Pipeline State for moon.
             //GraphicsPipelineStateDescription moonPipelineStateDescription = opaquePipelineStateDescription.Copy();
@@ -801,12 +931,11 @@ namespace ProiectSPG
             {
                 Name = "lampLightMaterial",
                 MaterialConstantBufferIndex = 18,
-                DiffuseSrvHeapIndex = 10, 
-                DiffuseAlbedo = new Vector4(1.0f, 0.95f, 0.7f, 1.0f),
-                FresnelR0 = new Vector3(0.05f),
-                Roughness = 0.2f
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(6.0f, 5.5f, 4.0f, 1.0f),
+                Roughness = 0.1f,
+                FresnelR0 = new Vector3(0.2f),
             });
-
             AddMaterial(new Material
             {
                 Name = "moonMaterial",
@@ -815,6 +944,40 @@ namespace ProiectSPG
                 DiffuseAlbedo = new Vector4(3.0f, 2.9f, 2.5f, 1.0f),
                 FresnelR0 = new Vector3(0.02f),
                 Roughness = 0.05f
+            });
+         
+
+
+
+
+            AddMaterial(new Material
+            {
+                Name = "carBodyMaterial",
+                MaterialConstantBufferIndex = 20,
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(0.85f, 0.10f, 0.10f, 1.0f),
+                FresnelR0 = new Vector3(0.04f),
+                Roughness = 0.25f
+            });
+
+            AddMaterial(new Material
+            {
+                Name = "carCabinMaterial",
+                MaterialConstantBufferIndex = 21,
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(0.20f, 0.25f, 0.35f, 1.0f),
+                FresnelR0 = new Vector3(0.03f),
+                Roughness = 0.35f
+            });
+
+            AddMaterial(new Material
+            {
+                Name = "carWheelMaterial",
+                MaterialConstantBufferIndex = 22,
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(0.05f, 0.05f, 0.05f, 1.0f),
+                FresnelR0 = new Vector3(0.02f),
+                Roughness = 0.85f
             });
         }
 
@@ -861,6 +1024,7 @@ namespace ProiectSPG
             objectCBIndex = CreateRiverWalls(objectCBIndex);
             objectCBIndex = CreateBridges(objectCBIndex);
             objectCBIndex = CreateStreetLamps(objectCBIndex);
+            objectCBIndex = CreateCars(objectCBIndex);
         }
        
         private int CreateStreets(int objectCBIndex)
@@ -879,39 +1043,39 @@ namespace ProiectSPG
 
             // left side pair: between -26 and 0
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
-                world: Matrix.Translation(-14.0f, 0.01f, -35.0f),
-                textureTransform: Matrix.Identity);
+                textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f), world: Matrix.Translation(-14.0f, 0.01f, -35.0f));
+
 
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
                 world: Matrix.Translation(-14.0f, 0.01f, 35.0f),
-                textureTransform: Matrix.Identity);
+                textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f));
 
             // right side pair: between 26 and 52
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
                 world: Matrix.Translation(39.0f, 0.01f, -35.0f),
-                textureTransform: Matrix.Identity);
+               textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f));
 
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
                 world: Matrix.Translation(39.0f, 0.01f, 35.0f),
-                textureTransform: Matrix.Identity);
+                textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f));
 
             return objectCBIndex;
         }
 
         private int CreatePavement(int objectCBIndex)
         {
+            //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
+            //    textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(-6.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(-6.5f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(1.0f, 100.0f, 3.0f), world: Matrix.Translation(+6.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(+6.5f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(1.0f, 100.0f, 3.0f), world: Matrix.Translation(19.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(19.5f, 0.0f, 0));
+            //    textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(32.5f, 0.0f, 0));
+            //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
+                textureTransform: Matrix.Scaling(10.0f, 100.0f, 3.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) *  Matrix.Translation(-13.1f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(32.5f, 0.0f, 0));
-            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) *  Matrix.Translation(-13.0f, 0.0f, 0));
-            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) * Matrix.Translation(39f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(10.0f, 100.0f, 3.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) * Matrix.Translation(39.0f, 0.0f, 0));
 
             return objectCBIndex;
         }
@@ -1114,7 +1278,7 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(-12.5f, 0.1f, z));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(38.5f, 1.5f, z));
+                    world: Matrix.Translation(38.5f, 0.1f, z));
             }
 
             // part 3
@@ -1249,8 +1413,14 @@ namespace ProiectSPG
 
             return objectCBIndex;
         }
+    
+
+
+
         private int CreateStreetLamp(int objectCBIndex, float x, float z)
         {
+            float sphereY = 3.6f;
+
             // base
             AddRenderItem(
                 RenderLayer.Opaque,
@@ -1258,7 +1428,7 @@ namespace ProiectSPG
                 "lampPoleMaterial",
                 "shapeGeo",
                 "box",
-                world: Matrix.Scaling(0.15f, 0.05f, 0.15f) *
+                world: Matrix.Scaling(0.18f, 0.06f, 0.18f) *
                        Matrix.Translation(x, 0.2f, z)
             );
 
@@ -1269,32 +1439,22 @@ namespace ProiectSPG
                 "lampPoleMaterial",
                 "shapeGeo",
                 "box",
-                world: Matrix.Scaling(0.04f, 0.45f, 0.04f) *
-                       Matrix.Translation(x, 1.6f, z)
+                world: Matrix.Scaling(0.05f, 0.50f, 0.05f) *
+                       Matrix.Translation(x, 1.8f, z)
             );
 
-            // horizontal arm
-            AddRenderItem(
-                RenderLayer.Opaque,
-                objectCBIndex++,
-                "lampPoleMaterial",
-                "shapeGeo",
-                "box",
-                world: Matrix.Scaling(0.12f, 0.02f, 0.03f) *
-                       Matrix.Translation(x + 0.45f, 2.95f, z)
-            );
-
-            // lamp head
+            // glowing sphere = lamp head
             AddRenderItem(
                 RenderLayer.Opaque,
                 objectCBIndex++,
                 "lampLightMaterial",
                 "shapeGeo",
-                "box",
-                world: Matrix.Scaling(0.05f, 0.05f, 0.05f) *
-                       Matrix.Translation(x + 0.75f, 2.85f, z)
+                "sphere",
+                world: Matrix.Scaling(0.45f, 0.45f, 0.45f) *
+                       Matrix.Translation(x, sphereY, z)
             );
-            streetLampLightPositions.Add(new Vector3(x + 0.75f, 2.85f, z));
+
+            streetLampLightPositions.Add(new Vector3(x, sphereY, z));
 
             return objectCBIndex;
         }
@@ -1316,7 +1476,7 @@ namespace ProiectSPG
 
                 
             }
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 6; i++)
             {
                 float z = -8.0f + i * -10.0f;
 
@@ -1331,8 +1491,219 @@ namespace ProiectSPG
 
             }
          
+             for (int i = 0; i < 5; i++)
+            {
+                float z = 60.0f + i * 10.0f;
+
+                // lamps near first street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, -3.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 3.5f, z);
+
+                // lamps near second street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 22.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 28.5f, z);
+
+
+            }
             return objectCBIndex;
         }
+
+
+
+
+        private void CreateShadowMap()
+        {
+            int shadowWidth = 2048;
+            int shadowHeight = 2048;
+
+            shadowViewport = new ViewportF(0, 0, shadowWidth, shadowHeight, 0.0f, 1.0f);
+            shadowScissorRect = new Rectangle(0, 0, shadowWidth, shadowHeight);
+
+            var shadowMapDesc = ResourceDescription.Texture2D(
+                Format.R24G8_Typeless,
+                shadowWidth,
+                shadowHeight,
+                1, 1, 1, 0,
+                ResourceFlags.AllowDepthStencil);
+
+            var optClear = new ClearValue
+            {
+                Format = Format.D24_UNorm_S8_UInt,
+                DepthStencil = new DepthStencilValue { Depth = 1.0f, Stencil = 0 }
+            };
+
+            shadowMap = Device.CreateCommittedResource(
+                new HeapProperties(HeapType.Default),
+                HeapFlags.None,
+                shadowMapDesc,
+                ResourceStates.GenericRead,
+                optClear);
+
+            // DSV heap
+            var dsvHeapDesc = new DescriptorHeapDescription
+            {
+                DescriptorCount = 1,
+                Type = DescriptorHeapType.DepthStencilView,
+                Flags = DescriptorHeapFlags.None
+            };
+
+            dsvHeapShadow = Device.CreateDescriptorHeap(dsvHeapDesc);
+            shadowDsv = dsvHeapShadow.CPUDescriptorHandleForHeapStart;
+
+            var dsvDesc = new DepthStencilViewDescription
+            {
+                Dimension = DepthStencilViewDimension.Texture2D,
+                Format = Format.D24_UNorm_S8_UInt
+            };
+
+            Device.CreateDepthStencilView(shadowMap, dsvDesc, shadowDsv);
+        }
+
+        //private void UpdateShadowTransform()
+        //{
+        //    Vector3 lightDir = -mainPassCB.Lights[0].Direction;
+        //    Vector3 lightPos = -150.0f * lightDir;
+
+        //    Vector3 targetPos = new Vector3(13.0f, 0.0f, 0.0f);
+        //    Vector3 up = Vector3.UnitY;
+
+        //    lightView = Matrix.LookAtLH(lightPos, targetPos, up);
+
+        //    // orthographic projection for directional light
+        //    float left = -120.0f;
+        //    float right = 120.0f;
+        //    float bottom = -120.0f;
+        //    float top = 120.0f;
+        //    float nearZ = 1.0f;
+        //    float farZ = 300.0f;
+
+        //    lightProj = Matrix.OrthoOffCenterLH(left, right, bottom, top, nearZ, farZ);
+
+        //    Matrix T = new Matrix(
+        //        0.5f, 0.0f, 0.0f, 0.0f,
+        //        0.0f, -0.5f, 0.0f, 0.0f,
+        //        0.0f, 0.0f, 1.0f, 0.0f,
+        //        0.5f, 0.5f, 0.0f, 1.0f);
+
+        //    shadowTransform = lightView * lightProj * T;
+        //}
+
+        private void UpdateShadowTransform()
+        {
+            Vector3 targetPos = new Vector3(13.0f, 0.0f, 0.0f);
+
+            Vector3 lightDir = Vector3.Normalize(mainPassCB.Lights[0].Direction);
+            Vector3 lightPos = targetPos - 180.0f * lightDir;
+
+            lightView = Matrix.LookAtLH(lightPos, targetPos, Vector3.UnitY);
+
+            lightProj = Matrix.OrthoOffCenterLH(
+                -120.0f, 120.0f,
+                -120.0f, 120.0f,
+                1.0f, 400.0f
+            );
+
+            Matrix T = new Matrix(
+                0.5f, 0.0f, 0.0f, 0.0f,
+                0.0f, -0.5f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                0.5f, 0.5f, 0.0f, 1.0f);
+
+            shadowTransform = lightView * lightProj * T;
+        }
+
+        //CAR
+        private int CreateCar(int objectCBIndex, float carX, float carY, float carZ)
+        {
+            float wheelY = carY - 0.35f;
+            float wheelOffsetX = 1.0f;
+            float wheelOffsetZ = 0.78f;
+
+            Matrix carRotation = Matrix.Identity;
+
+            // body
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carBodyMaterial",
+                "shapeGeo",
+                "carBody",
+                world: carRotation * Matrix.Translation(carX, carY, carZ)
+            );
+
+            // cabin
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carCabinMaterial",
+                "shapeGeo",
+                "carCabin",
+                world: carRotation * Matrix.Translation(carX + 0.2f, carY + 0.55f, carZ)
+            );
+
+            // wheel rotation
+            Matrix wheelRotation = Matrix.RotationZ(MathUtil.PiOverTwo);
+            // If the wheels stand upright, replace with:
+            // Matrix wheelRotation = Matrix.RotationX(MathUtil.PiOverTwo);
+
+            // front-left
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX - wheelOffsetX, wheelY, carZ - wheelOffsetZ)
+            );
+
+            // front-right
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX - wheelOffsetX, wheelY, carZ + wheelOffsetZ)
+            );
+
+            // back-left
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX + wheelOffsetX, wheelY, carZ - wheelOffsetZ)
+            );
+
+            // back-right
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX + wheelOffsetX, wheelY, carZ + wheelOffsetZ)
+            );
+
+            return objectCBIndex;
+        }
+
+        private int CreateCars(int objectCBIndex)
+        {
+            objectCBIndex = CreateCar(objectCBIndex, -1.5f, 0.8f, -20.0f);
+            objectCBIndex = CreateCar(objectCBIndex, -1.5f, 0.8f, 20.0f);
+
+            objectCBIndex = CreateCar(objectCBIndex, 24.5f, 0.8f, -35.0f);
+            objectCBIndex = CreateCar(objectCBIndex, 24.5f, 0.8f, 35.0f);
+
+            return objectCBIndex;
+        }
+
         private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
            Matrix? world = null, Matrix? textureTransform = null)
         {
@@ -1427,6 +1798,7 @@ namespace ProiectSPG
 
         private void DrawRenderItems(GraphicsCommandList cmdList, IList<RenderItem> renderItems)
         {
+
             int objCBByteSize = D3DHelper.ComputeConstantBufferByteSize<ObjectConstants>();
 
             Resource objectCB = CurrentFrameResource.ObjectCB.Resource;
@@ -1445,7 +1817,58 @@ namespace ProiectSPG
             }
         }
 
-        private static StaticSamplerDescription[] GetStaticSamplers() => new[]
+
+
+
+
+        private void DrawSceneToShadowMap()
+        {
+            // Set shadow-map viewport/scissor instead of the screen ones
+            CommandList.SetViewport(shadowViewport);
+            CommandList.SetScissorRectangles(shadowScissorRect);
+
+            // Shadow map: GenericRead -> DepthWrite
+            CommandList.ResourceBarrierTransition(
+                shadowMap,
+                ResourceStates.GenericRead,
+                ResourceStates.DepthWrite);
+
+            // No color target, only depth
+            CommandList.ClearDepthStencilView(
+                shadowDsv,
+                ClearFlags.FlagsDepth,
+                1.0f,
+                0);
+
+            CommandList.SetRenderTargets((CpuDescriptorHandle)default, shadowDsv);
+
+            // Use shadow PSO
+            CommandList.PipelineState = pipelineStates["shadow"];
+
+            // Root signature stays the same
+            CommandList.SetGraphicsRootSignature(rootSignature);
+
+            // Pass constants
+            Resource passCB = CurrentFrameResource.PassCB.Resource;
+            CommandList.SetGraphicsRootConstantBufferView(1, passCB.GPUVirtualAddress);
+
+            // Material buffer, only if your shadow shader/root signature still expects it
+            Resource matBuffer = CurrentFrameResource.MaterialBuffer.Resource;
+            CommandList.SetGraphicsRootShaderResourceView(2, matBuffer.GPUVirtualAddress);
+
+            // Draw opaque objects into shadow map
+            DrawRenderItems(CommandList, renderItemLayers[RenderLayer.Opaque]);
+
+            // Back to GenericRead so main pass can sample shadow map
+            CommandList.ResourceBarrierTransition(
+                shadowMap,
+                ResourceStates.DepthWrite,
+                ResourceStates.GenericRead);
+        }
+
+        private static StaticSamplerDescription[] GetStaticSamplers()
+        {
+            return new[]
         {
             // PointWrap
             new StaticSamplerDescription(ShaderVisibility.All, 0, 0)
@@ -1486,8 +1909,20 @@ namespace ProiectSPG
                 AddressUVW = TextureAddressMode.Clamp,
                 MipLODBias = 0.0f,
                 MaxAnisotropy = 8
-            }
+            },
+          new StaticSamplerDescription(ShaderVisibility.All, 6, 0)
+{
+    Filter = Filter.ComparisonMinMagLinearMipPoint,
+    AddressUVW = TextureAddressMode.Border,
+    ComparisonFunc = Comparison.LessEqual,
+    BorderColor = StaticBorderColor.OpaqueWhite
+}
+
+
+
+
         };
+        }
     }
 
 

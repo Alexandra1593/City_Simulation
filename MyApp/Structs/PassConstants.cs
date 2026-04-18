@@ -20,7 +20,16 @@ namespace ProiectSPG.Structs
         public float FarZ;
         public float TotalTime;
         public float DeltaTime;
-        
+
+
+
+
+        public Matrix LightView;
+        public Matrix LightProj;
+        public Matrix ShadowTransform;
+
+
+
         public Vector4 AmbientLight;
 
         // Indices [0, NUM_DIR_LIGHTS) are directional lights;
@@ -40,7 +49,9 @@ namespace ProiectSPG.Structs
             InvViewProj = Matrix.Identity,
             AmbientLight = Vector4.UnitW,
             Lights = Light.DefaultArray,
-          
+            LightView = Matrix.Identity,
+            LightProj = Matrix.Identity,
+            ShadowTransform = Matrix.Identity
         };
     }
 }

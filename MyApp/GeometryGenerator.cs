@@ -237,7 +237,6 @@ namespace ProiectSPG
                         new Vector2(j * du, i * dv))); // Stretch texture over grid.
                 }
             }
-
             // Create the indices.
             // Iterate over each quad and compute indices.
             for (int i = 0; i < m - 1; i++)
@@ -256,6 +255,152 @@ namespace ProiectSPG
 
             return meshData;
         }
+
+
+
+
+
+
+        public static MeshData CreateCylinder(float bottomRadius, float topRadius, float height,
+    int sliceCount, int stackCount)
+        {
+            MeshData meshData = new MeshData();
+
+            float stackHeight = height / stackCount;
+            float radiusStep = (topRadius - bottomRadius) / stackCount;
+            int ringCount = stackCount + 1;
+
+            // Build vertices
+            for (int i = 0; i < ringCount; i++)
+            {
+                float y = -0.5f * height + i * stackHeight;
+                float r = bottomRadius + i * radiusStep;
+
+                float dTheta = 2.0f * MathUtil.Pi / sliceCount;
+
+                for (int j = 0; j <= sliceCount; j++)
+                {
+                    float c = (float)Math.Cos(j * dTheta);
+                    float s = (float)Math.Sin(j * dTheta);
+
+                    Vertex v = new Vertex();
+
+                    v.Position = new Vector3(r * c, y, r * s);
+
+                    v.Normal = new Vector3(c, 0.0f, s);
+                    v.Normal.Normalize();
+
+                    v.TexC = new Vector2((float)j / sliceCount, 1.0f - (float)i / stackCount);
+
+                    meshData.Vertices.Add(v);
+                }
+            }
+
+            // Build indices (side)
+            int ringVertexCount = sliceCount + 1;
+
+            for (int i = 0; i < stackCount; i++)
+            {
+                for (int j = 0; j < sliceCount; j++)
+                {
+                    meshData.Indices32.Add(i * ringVertexCount + j);
+                    meshData.Indices32.Add((i + 1) * ringVertexCount + j);
+                    meshData.Indices32.Add((i + 1) * ringVertexCount + j + 1);
+
+                    meshData.Indices32.Add(i * ringVertexCount + j);
+                    meshData.Indices32.Add((i + 1) * ringVertexCount + j + 1);
+                    meshData.Indices32.Add(i * ringVertexCount + j + 1);
+                }
+            }
+
+            BuildCylinderTopCap(topRadius, height, sliceCount, ref meshData);
+            BuildCylinderBottomCap(bottomRadius, height, sliceCount, ref meshData);
+
+            return meshData;
+        }
+
+
+
+        private static void BuildCylinderTopCap(float topRadius, float height,
+    int sliceCount, ref MeshData meshData)
+        {
+            int baseIndex = meshData.Vertices.Count;
+
+            float y = 0.5f * height;
+            float dTheta = 2.0f * MathUtil.Pi / sliceCount;
+
+            // ring vertices
+            for (int i = 0; i <= sliceCount; i++)
+            {
+                float x = topRadius * (float)Math.Cos(i * dTheta);
+                float z = topRadius * (float)Math.Sin(i * dTheta);
+
+                meshData.Vertices.Add(new Vertex
+                {
+                    Position = new Vector3(x, y, z),
+                    Normal = new Vector3(0, 1, 0),
+                    TexC = new Vector2(x, z)
+                });
+            }
+
+            // center
+            meshData.Vertices.Add(new Vertex
+            {
+                Position = new Vector3(0, y, 0),
+                Normal = new Vector3(0, 1, 0),
+                TexC = new Vector2(0.5f, 0.5f)
+            });
+
+            int centerIndex = meshData.Vertices.Count - 1;
+
+            for (int i = 0; i < sliceCount; i++)
+            {
+                meshData.Indices32.Add(centerIndex);
+                meshData.Indices32.Add(baseIndex + i + 1);
+                meshData.Indices32.Add(baseIndex + i);
+            }
+        }
+
+        private static void BuildCylinderBottomCap(float bottomRadius, float height,
+    int sliceCount, ref MeshData meshData)
+        {
+            int baseIndex = meshData.Vertices.Count;
+
+            float y = -0.5f * height;
+            float dTheta = 2.0f * MathUtil.Pi / sliceCount;
+
+            for (int i = 0; i <= sliceCount; i++)
+            {
+                float x = bottomRadius * (float)Math.Cos(i * dTheta);
+                float z = bottomRadius * (float)Math.Sin(i * dTheta);
+
+                meshData.Vertices.Add(new Vertex
+                {
+                    Position = new Vector3(x, y, z),
+                    Normal = new Vector3(0, -1, 0),
+                    TexC = new Vector2(x, z)
+                });
+            }
+
+            meshData.Vertices.Add(new Vertex
+            {
+                Position = new Vector3(0, y, 0),
+                Normal = new Vector3(0, -1, 0),
+                TexC = new Vector2(0.5f, 0.5f)
+            });
+
+            int centerIndex = meshData.Vertices.Count - 1;
+
+            for (int i = 0; i < sliceCount; i++)
+            {
+                meshData.Indices32.Add(centerIndex);
+                meshData.Indices32.Add(baseIndex + i);
+                meshData.Indices32.Add(baseIndex + i + 1);
+            }
+        }
+
+
+
 
         private static void Subdivide(MeshData meshData)
         {

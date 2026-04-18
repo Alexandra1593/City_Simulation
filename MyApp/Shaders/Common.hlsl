@@ -8,7 +8,7 @@
 #endif
 
 #ifndef NUM_POINT_LIGHTS
-    #define NUM_POINT_LIGHTS 0
+    #define NUM_POINT_LIGHTS 40
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
@@ -16,7 +16,7 @@
 #endif
 
 // Include structures and functions for lighting.
-#include "Shaders\LightingUtil.hlsl"
+#include "LightingUtil.hlsl"
 
 struct MaterialData
 {
@@ -34,7 +34,7 @@ TextureCube gCubeMap : register(t0);
 
 // An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
 // in this array can be different sizes and formats, making it more flexible than texture arrays.
-Texture2D gDiffuseMap[4] : register(t1);
+Texture2D gDiffuseMap[20] : register(t1);
 
 // Put in space1, so the texture array does not overlap with these resources.
 // The texture array will occupy registers t0, t1, ..., t3 in space0.
@@ -47,6 +47,9 @@ SamplerState gsamLinearWrap       : register(s2);
 SamplerState gsamLinearClamp      : register(s3);
 SamplerState gsamAnisotropicWrap  : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
+
+Texture2D gShadowMap : register(t21);
+
 
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0)
@@ -83,4 +86,8 @@ cbuffer cbPass : register(b1)
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
     // are spot lights for a maximum of MaxLights per object.
     Light gLights[MaxLights];
+    
+    float4x4 gLightView;
+    float4x4 gLightProj;
+    float4x4 gShadowTransform;
 };
