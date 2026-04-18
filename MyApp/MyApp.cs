@@ -1,6 +1,7 @@
 ﻿using DX12GameProgramming.Enums;
 using ProiectSPG.Structs;
 using SharpDX;
+using SharpDX.Direct3D;
 using SharpDX.Direct3D12;
 using SharpDX.DXGI;
 using System.Collections.Generic;
@@ -99,7 +100,11 @@ namespace ProiectSPG
         {
             base.OnResize();
 
-            // The window resized, so update the aspect ratio and recompute the projection matrix.
+            // The window resized, so update the a
+            //
+            //
+            //
+            // t ratio and recompute the projection matrix.
             camera.SetLens(MathUtil.PiOverFour, AspectRatio, 1.0f, 1000.0f);
         }
 
@@ -321,7 +326,7 @@ namespace ProiectSPG
             mainPassCB.AmbientLight = new Vector4(0.04f, 0.04f, 0.08f, 1.0f);
 
             mainPassCB.Lights[0].Direction = Vector3.Normalize(new Vector3(0.25f, -1.0f, 0.3f));
-            mainPassCB.Lights[0].Strength = new Vector3(0.15f, 0.15f, 0.20f);
+            mainPassCB.Lights[0].Strength = new Vector3(0.2f, 0.17f, 0.17f);
 
             mainPassCB.Lights[1].Direction = Vector3.Normalize(new Vector3(-0.2f, -0.6f, 0.1f));
             mainPassCB.Lights[1].Strength = new Vector3(0.1f, 0.1f, 0.08f);
@@ -340,23 +345,69 @@ namespace ProiectSPG
                 mainPassCB.Lights[i].SpotPower = 1.0f;
             }
 
-            // add a few lamp lights
+
+            //int lampCount = System.Math.Min(streetLampLightPositions.Count, mainPassCB.Lights.Length - 3);
+
+            //    for (int i = 0; i < lampCount; i++)
+            //    {
+            //        int lightIndex = 3 + i;
+
+            //        mainPassCB.Lights[lightIndex].Strength = new Vector3(3.0f, 2.7f, 2.2f);
+            //        mainPassCB.Lights[lightIndex].Position = streetLampLightPositions[i];
+            //        mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, -1.0f, 0.0f);
+            //        mainPassCB.Lights[lightIndex].FalloffStart = 0.5f;
+            //        mainPassCB.Lights[lightIndex].FalloffEnd = 9.0f;
+            //        mainPassCB.Lights[lightIndex].SpotPower = 30.0f;
+            //    }
+
+
+            //for (int i = 0; i < lampCount; i++)
+            //{
+            //    int lightIndex = 3 + i;
+
+            //    mainPassCB.Lights[lightIndex].Strength = new Vector3(3.0f, 2.7f, 2.2f);
+            //    mainPassCB.Lights[lightIndex].Position = streetLampLightPositions[i];
+            //    mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, 0.0f, 1.0f);
+
+            //    mainPassCB.Lights[lightIndex].FalloffStart = 1.0f;
+            //    mainPassCB.Lights[lightIndex].FalloffEnd = 30.0f;
+            //    mainPassCB.Lights[lightIndex].SpotPower = 10.0f;
+
+            //}
+
+
             int lampCount = System.Math.Min(streetLampLightPositions.Count, mainPassCB.Lights.Length - 3);
 
             for (int i = 0; i < lampCount; i++)
             {
                 int lightIndex = 3 + i;
+                Vector3 lampPos = streetLampLightPositions[i];
 
-                mainPassCB.Lights[lightIndex].Strength = new Vector3(1.8f, 1.6f, 1.2f);
-                mainPassCB.Lights[lightIndex].Position = streetLampLightPositions[i];
-                mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, -1.0f, 0.0f);
+                // light origin = sphere center
+                mainPassCB.Lights[lightIndex].Position = lampPos;
+
+                // light points down from the sphere
+                mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, -1.5f, -0.0f);
+
+                // warm lamp color
+                mainPassCB.Lights[lightIndex].Strength = new Vector3(1.0f, 1.0f, 0.5f);
+
+                // starts bright near the sphere, reaches street below
                 mainPassCB.Lights[lightIndex].FalloffStart = 1.0f;
-                mainPassCB.Lights[lightIndex].FalloffEnd = 12.0f;
-                mainPassCB.Lights[lightIndex].SpotPower = 32.0f;
+                mainPassCB.Lights[lightIndex].FalloffEnd = 10.0f;
+
+                // smaller value = wider cone around the sphere
+                mainPassCB.Lights[lightIndex].SpotPower = 1.0f;
             }
 
+
             CurrentFrameResource.PassCB.CopyData(0, ref mainPassCB);
-        }
+            }
+
+
+
+
+
 
         private void LoadTextures()
         {
@@ -365,9 +416,9 @@ namespace ProiectSPG
             AddTexture("house3", "house3.dds"); //2
             AddTexture("house4", "house4.dds"); //3
             AddTexture("house5", "house5.dds"); //4
-            AddTexture("tree1", "treearray.dds");//5
-            AddTexture("tree2", "treeArray2.dds");//6
-            AddTexture("tree3", "tree02S.dds"); //7
+            AddTexture("tree1", "roses.dds");//5
+            AddTexture("tree2", "tree2.dds");//6
+            AddTexture("tree3", "tree.dds"); //7
             AddTexture("street", "street1.dds");//8
             AddTexture("grass", "grass.dds");//9
             AddTexture("pavement", "pavement.dds");//10
@@ -520,7 +571,13 @@ namespace ProiectSPG
             SubmeshGeometry terrainGrid = AppendMeshData(GeometryGenerator.CreateGrid(200.0f, 250.0f, 100, 100), vertices, indices);
             SubmeshGeometry riverGrid = AppendMeshData(GeometryGenerator.CreateGrid(10.0f, 250.0f, 20, 80), vertices, indices);
             SubmeshGeometry houseBox = AppendMeshData(GeometryGenerator.CreateBox(3.0f, 8.0f, 5.0f, 3), vertices, indices);
-            SubmeshGeometry smallStreetGrid = AppendMeshData(GeometryGenerator.CreateGrid(30.0f, 5.5f, 4, 2), vertices, indices);
+            SubmeshGeometry smallStreetGrid = AppendMeshData(GeometryGenerator.CreateGrid(22.0f, 5.5f, 4, 2), vertices, indices);
+
+            SubmeshGeometry carBody = AppendMeshData(GeometryGenerator.CreateBox(1.6f, 0.7f, 6.4f, 0), vertices, indices);
+            SubmeshGeometry carCabin = AppendMeshData(GeometryGenerator.CreateBox(0.6f, 0.7f, 2.5f, 0), vertices, indices);
+            SubmeshGeometry wheel = AppendMeshData(GeometryGenerator.CreateCylinder(0.35f, 0.35f, 0.25f, 20, 20), vertices, indices);
+            SubmeshGeometry headlight = AppendMeshData(GeometryGenerator.CreateSphere(0.12f, 16, 16), vertices, indices);
+
 
 
             var geo = MeshGeometry.New(Device, CommandList, vertices, indices.ToArray(), "shapeGeo");
@@ -536,7 +593,10 @@ namespace ProiectSPG
             geo.DrawArguments["riverGrid"] = riverGrid;
             geo.DrawArguments["houseBox"] = houseBox;
             geo.DrawArguments["smallStreetGrid"] = smallStreetGrid;
-
+            geo.DrawArguments["carBody"] = carBody;
+            geo.DrawArguments["carCabin"] = carCabin;
+            geo.DrawArguments["wheel"] = wheel;
+            geo.DrawArguments["headlight"] = headlight; 
 
             geometries[geo.Name] = geo;
         }
@@ -801,12 +861,11 @@ namespace ProiectSPG
             {
                 Name = "lampLightMaterial",
                 MaterialConstantBufferIndex = 18,
-                DiffuseSrvHeapIndex = 10, 
-                DiffuseAlbedo = new Vector4(1.0f, 0.95f, 0.7f, 1.0f),
-                FresnelR0 = new Vector3(0.05f),
-                Roughness = 0.2f
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(6.0f, 5.5f, 4.0f, 1.0f),
+                Roughness = 0.1f,
+                FresnelR0 = new Vector3(0.2f),
             });
-
             AddMaterial(new Material
             {
                 Name = "moonMaterial",
@@ -815,6 +874,40 @@ namespace ProiectSPG
                 DiffuseAlbedo = new Vector4(3.0f, 2.9f, 2.5f, 1.0f),
                 FresnelR0 = new Vector3(0.02f),
                 Roughness = 0.05f
+            });
+         
+
+
+
+
+            AddMaterial(new Material
+            {
+                Name = "carBodyMaterial",
+                MaterialConstantBufferIndex = 20,
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(0.85f, 0.10f, 0.10f, 1.0f),
+                FresnelR0 = new Vector3(0.04f),
+                Roughness = 0.25f
+            });
+
+            AddMaterial(new Material
+            {
+                Name = "carCabinMaterial",
+                MaterialConstantBufferIndex = 21,
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(0.20f, 0.25f, 0.35f, 1.0f),
+                FresnelR0 = new Vector3(0.03f),
+                Roughness = 0.35f
+            });
+
+            AddMaterial(new Material
+            {
+                Name = "carWheelMaterial",
+                MaterialConstantBufferIndex = 22,
+                DiffuseSrvHeapIndex = 10,
+                DiffuseAlbedo = new Vector4(0.05f, 0.05f, 0.05f, 1.0f),
+                FresnelR0 = new Vector3(0.02f),
+                Roughness = 0.85f
             });
         }
 
@@ -861,6 +954,7 @@ namespace ProiectSPG
             objectCBIndex = CreateRiverWalls(objectCBIndex);
             objectCBIndex = CreateBridges(objectCBIndex);
             objectCBIndex = CreateStreetLamps(objectCBIndex);
+            objectCBIndex = CreateCars(objectCBIndex);
         }
        
         private int CreateStreets(int objectCBIndex)
@@ -879,39 +973,39 @@ namespace ProiectSPG
 
             // left side pair: between -26 and 0
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
-                world: Matrix.Translation(-14.0f, 0.01f, -35.0f),
-                textureTransform: Matrix.Identity);
+                textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f), world: Matrix.Translation(-14.0f, 0.01f, -35.0f));
+
 
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
                 world: Matrix.Translation(-14.0f, 0.01f, 35.0f),
-                textureTransform: Matrix.Identity);
+                textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f));
 
             // right side pair: between 26 and 52
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
                 world: Matrix.Translation(39.0f, 0.01f, -35.0f),
-                textureTransform: Matrix.Identity);
+               textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f));
 
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "streetMaterial", "shapeGeo", "smallStreetGrid",
                 world: Matrix.Translation(39.0f, 0.01f, 35.0f),
-                textureTransform: Matrix.Identity);
+                textureTransform: Matrix.Scaling(10.0f, 1.0f, 2.0f));
 
             return objectCBIndex;
         }
 
         private int CreatePavement(int objectCBIndex)
         {
+            //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
+            //    textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(-6.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(-6.5f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(1.0f, 100.0f, 3.0f), world: Matrix.Translation(+6.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(+6.5f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(1.0f, 100.0f, 3.0f), world: Matrix.Translation(19.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(19.5f, 0.0f, 0));
+            //    textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(32.5f, 0.0f, 0));
+            //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
+                textureTransform: Matrix.Scaling(10.0f, 100.0f, 3.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) *  Matrix.Translation(-13.1f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(32.5f, 0.0f, 0));
-            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) *  Matrix.Translation(-13.0f, 0.0f, 0));
-            AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-                textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) * Matrix.Translation(39f, 0.0f, 0));
+                textureTransform: Matrix.Scaling(10.0f, 100.0f, 3.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) * Matrix.Translation(39.0f, 0.0f, 0));
 
             return objectCBIndex;
         }
@@ -1114,7 +1208,7 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(-12.5f, 0.1f, z));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                    world: Matrix.Translation(38.5f, 1.5f, z));
+                    world: Matrix.Translation(38.5f, 0.1f, z));
             }
 
             // part 3
@@ -1249,8 +1343,53 @@ namespace ProiectSPG
 
             return objectCBIndex;
         }
+        //private int CreateStreetLamp(int objectCBIndex, float x, float z)
+        //{
+        //    // base
+        //    AddRenderItem(
+        //        RenderLayer.Opaque,
+        //        objectCBIndex++,
+        //        "lampPoleMaterial",
+        //        "shapeGeo",
+        //        "box",
+        //        world: Matrix.Scaling(0.18f, 0.06f, 0.18f) *
+        //               Matrix.Translation(x, 0.2f, z)
+        //    );
+
+        //    // pole
+        //    AddRenderItem(
+        //        RenderLayer.Opaque,
+        //        objectCBIndex++,
+        //        "lampPoleMaterial",
+        //        "shapeGeo",
+        //        "box",
+        //        world: Matrix.Scaling(0.05f, 0.50f, 0.05f) *
+        //               Matrix.Translation(x, 1.8f, z)
+        //    );
+
+        //    // glowing sphere on top
+        //    AddRenderItem(
+        //        RenderLayer.Opaque,
+        //        objectCBIndex++,
+        //        "lampLightMaterial",
+        //        "shapeGeo",
+        //        "sphere",
+        //        world: Matrix.Scaling(0.45f, 0.45f, 0.45f) *
+        //               Matrix.Translation(x, 3.6f, z)
+        //    );
+
+        //    // light source exactly in the center of the sphere
+        //    streetLampLightPositions.Add(new Vector3(x, 3.6f, z));
+
+        //    return objectCBIndex;
+        //}
+
+
+
         private int CreateStreetLamp(int objectCBIndex, float x, float z)
         {
+            float sphereY = 3.6f;
+
             // base
             AddRenderItem(
                 RenderLayer.Opaque,
@@ -1258,7 +1397,7 @@ namespace ProiectSPG
                 "lampPoleMaterial",
                 "shapeGeo",
                 "box",
-                world: Matrix.Scaling(0.15f, 0.05f, 0.15f) *
+                world: Matrix.Scaling(0.18f, 0.06f, 0.18f) *
                        Matrix.Translation(x, 0.2f, z)
             );
 
@@ -1269,32 +1408,23 @@ namespace ProiectSPG
                 "lampPoleMaterial",
                 "shapeGeo",
                 "box",
-                world: Matrix.Scaling(0.04f, 0.45f, 0.04f) *
-                       Matrix.Translation(x, 1.6f, z)
+                world: Matrix.Scaling(0.05f, 0.50f, 0.05f) *
+                       Matrix.Translation(x, 1.8f, z)
             );
 
-            // horizontal arm
-            AddRenderItem(
-                RenderLayer.Opaque,
-                objectCBIndex++,
-                "lampPoleMaterial",
-                "shapeGeo",
-                "box",
-                world: Matrix.Scaling(0.12f, 0.02f, 0.03f) *
-                       Matrix.Translation(x + 0.45f, 2.95f, z)
-            );
-
-            // lamp head
+            // glowing sphere = lamp head
             AddRenderItem(
                 RenderLayer.Opaque,
                 objectCBIndex++,
                 "lampLightMaterial",
                 "shapeGeo",
-                "box",
-                world: Matrix.Scaling(0.05f, 0.05f, 0.05f) *
-                       Matrix.Translation(x + 0.75f, 2.85f, z)
+                "sphere",
+                world: Matrix.Scaling(0.45f, 0.45f, 0.45f) *
+                       Matrix.Translation(x, sphereY, z)
             );
-            streetLampLightPositions.Add(new Vector3(x + 0.75f, 2.85f, z));
+
+            // real light starts exactly from the sphere center
+            streetLampLightPositions.Add(new Vector3(x, sphereY, z));
 
             return objectCBIndex;
         }
@@ -1316,7 +1446,7 @@ namespace ProiectSPG
 
                 
             }
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 6; i++)
             {
                 float z = -8.0f + i * -10.0f;
 
@@ -1331,8 +1461,119 @@ namespace ProiectSPG
 
             }
          
+             for (int i = 0; i < 5; i++)
+            {
+                float z = 60.0f + i * 10.0f;
+
+                // lamps near first street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, -3.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 3.5f, z);
+
+                // lamps near second street
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 22.5f, z);
+                objectCBIndex = CreateStreetLamp(objectCBIndex, 28.5f, z);
+
+
+            }
             return objectCBIndex;
         }
+
+
+
+
+
+        //CAR
+        private int CreateCar(int objectCBIndex, float carX, float carY, float carZ)
+        {
+            float wheelY = carY - 0.35f;
+            float wheelOffsetX = 1.0f;
+            float wheelOffsetZ = 0.78f;
+
+            Matrix carRotation = Matrix.Identity;
+
+            // body
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carBodyMaterial",
+                "shapeGeo",
+                "carBody",
+                world: carRotation * Matrix.Translation(carX, carY, carZ)
+            );
+
+            // cabin
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carCabinMaterial",
+                "shapeGeo",
+                "carCabin",
+                world: carRotation * Matrix.Translation(carX + 0.2f, carY + 0.55f, carZ)
+            );
+
+            // wheel rotation
+            Matrix wheelRotation = Matrix.RotationZ(MathUtil.PiOverTwo);
+            // If the wheels stand upright, replace with:
+            // Matrix wheelRotation = Matrix.RotationX(MathUtil.PiOverTwo);
+
+            // front-left
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX - wheelOffsetX, wheelY, carZ - wheelOffsetZ)
+            );
+
+            // front-right
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX - wheelOffsetX, wheelY, carZ + wheelOffsetZ)
+            );
+
+            // back-left
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX + wheelOffsetX, wheelY, carZ - wheelOffsetZ)
+            );
+
+            // back-right
+            AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX + wheelOffsetX, wheelY, carZ + wheelOffsetZ)
+            );
+
+            return objectCBIndex;
+        }
+
+        private int CreateCars(int objectCBIndex)
+        {
+            objectCBIndex = CreateCar(objectCBIndex, -1.5f, 0.8f, -20.0f);
+            objectCBIndex = CreateCar(objectCBIndex, -1.5f, 0.8f, 20.0f);
+
+            objectCBIndex = CreateCar(objectCBIndex, 24.5f, 0.8f, -35.0f);
+            objectCBIndex = CreateCar(objectCBIndex, 24.5f, 0.8f, 35.0f);
+
+            return objectCBIndex;
+        }
+
         private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
            Matrix? world = null, Matrix? textureTransform = null)
         {
