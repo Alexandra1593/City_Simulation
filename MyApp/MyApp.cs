@@ -368,6 +368,7 @@ namespace ProiectSPG
             mainPassCB.Lights[0].Direction = Vector3.Normalize(new Vector3(1.0f, -0.35f, 0.4f));
             mainPassCB.Lights[0].Strength = new Vector3(0.9f, 0.9f, 1.0f);
 
+
             mainPassCB.Lights[1].Strength = new Vector3(0.05f, 0.05f, 0.05f);
             mainPassCB.Lights[2].Strength = new Vector3(0.03f, 0.03f, 0.05f);
 
