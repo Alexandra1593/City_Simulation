@@ -49,7 +49,61 @@ namespace ProiectSPG
         private Matrix shadowTransform = Matrix.Identity;
 
 
+        //CAR MOVEMENT VARIABLES
+        private RenderItem playerCarBody;
+        private RenderItem playerCarCabin;
+        private RenderItem playerCarWheelFL;
+        private RenderItem playerCarWheelFR;
+        private RenderItem playerCarWheelBL;
+        private RenderItem playerCarWheelBR;
 
+        private float playerCarX = -1.5f;
+        private float playerCarY = 0.8f;
+        private float playerCarZ = -20.0f;
+
+        private float playerCarRotationY = 0.0f;
+
+        private float playerCarSpeed = 10.0f;
+        private float playerCarTurnSpeed = 2.0f;
+
+        private float playerCarRadius = 1.3f;
+
+
+        //for outside the road collision
+        private struct RoadRect
+        {
+            public float MinX;
+            public float MaxX;
+            public float MinZ;
+            public float MaxZ;
+
+            public RoadRect(float minX, float maxX, float minZ, float maxZ)
+            {
+                MinX = minX;
+                MaxX = maxX;
+                MinZ = minZ;
+                MaxZ = maxZ;
+            }
+        }
+        private readonly List<RoadRect> roadRects = new List<RoadRect>();
+
+        //for car collision
+        private struct CarCollider
+        {
+            public float X;
+            public float Z;
+            public float HalfWidth;
+            public float HalfLength;
+
+            public CarCollider(float x, float z, float halfWidth, float halfLength)
+            {
+                X = x;
+                Z = z;
+                HalfWidth = halfWidth;
+                HalfLength = halfLength;
+            }
+        }
+        private readonly List<CarCollider> staticCarColliders = new List<CarCollider>();
 
         private InputLayoutDescription inputLayout;
 
@@ -104,6 +158,7 @@ namespace ProiectSPG
             CreateShapeGeometries();
             CreateMaterials();
             CreateRenderItems();
+            BuildRoadRects();
             CreateFrameResources();
             CreatePipelineStateObjects();
             UpdateShadowTransform();
@@ -144,6 +199,7 @@ namespace ProiectSPG
             }
 
 
+            UpdatePlayerCar(gameTimer);
             AnimateWaterMaterial(gameTimer);
             UpdateObjectCBs();
             UpdateMaterialBuffer();
@@ -412,6 +468,26 @@ namespace ProiectSPG
             mainPassCB.LightView = Matrix.Transpose(lightView);
             mainPassCB.LightProj = Matrix.Transpose(lightProj);
             mainPassCB.ShadowTransform = Matrix.Transpose(shadowTransform);
+
+
+
+                //// light origin = sphere center
+                //mainPassCB.Lights[lightIndex].Position = lampPos;
+
+                //// light points down from the sphere
+                //mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, -1.5f, -0.0f);
+
+                //// warm lamp color
+                //mainPassCB.Lights[lightIndex].Strength = new Vector3(1.0f, 1.0f, 0.5f);
+
+                //// starts bright near the sphere, reaches street below
+                //mainPassCB.Lights[lightIndex].FalloffStart = 1.0f;
+                //mainPassCB.Lights[lightIndex].FalloffEnd = 10.0f;
+
+                //// smaller value = wider cone around the sphere
+                //mainPassCB.Lights[lightIndex].SpotPower = 1.0f;
+            
+
 
             CurrentFrameResource.PassCB.CopyData(0, ref mainPassCB);
             }
@@ -1063,6 +1139,40 @@ namespace ProiectSPG
             return objectCBIndex;
         }
 
+        // This method defines the rectangles that represent the roads, which will be used for car movement and collision detection.
+        private void BuildRoadRects()
+        {
+            roadRects.Clear();
+
+            // Străzile verticale mari.
+            // În CreateShapeGeometries ai grid = CreateGrid(7.0f, 250.0f...)
+            // Deci fiecare stradă verticală are lățime aproximativ 7, adică half width = 3.5.
+            float verticalHalfWidth = 3.5f;
+            float verticalMinZ = -125.0f;
+            float verticalMaxZ = 125.0f;
+
+            roadRects.Add(new RoadRect(-verticalHalfWidth, verticalHalfWidth, verticalMinZ, verticalMaxZ));             // x = 0
+            roadRects.Add(new RoadRect(26.0f - verticalHalfWidth, 26.0f + verticalHalfWidth, verticalMinZ, verticalMaxZ)); // x = 26
+            roadRects.Add(new RoadRect(-26.0f - verticalHalfWidth, -26.0f + verticalHalfWidth, verticalMinZ, verticalMaxZ)); // x = -26
+            roadRects.Add(new RoadRect(52.0f - verticalHalfWidth, 52.0f + verticalHalfWidth, verticalMinZ, verticalMaxZ)); // x = 52
+
+            // Străzile orizontale mici.
+            // smallStreetGrid = CreateGrid(22.0f, 5.5f...)
+            // Deci half width X = 11, half width Z = 2.75.
+            float horizontalHalfX = 11.0f;
+            float horizontalHalfZ = 2.75f;
+
+            // între -26 și 0
+            roadRects.Add(new RoadRect(-14.0f - horizontalHalfX, -14.0f + horizontalHalfX, -35.0f - horizontalHalfZ, -35.0f + horizontalHalfZ));
+            roadRects.Add(new RoadRect(-14.0f - horizontalHalfX, -14.0f + horizontalHalfX, 35.0f - horizontalHalfZ, 35.0f + horizontalHalfZ));
+
+            // între 26 și 52
+            roadRects.Add(new RoadRect(39.0f - horizontalHalfX, 39.0f + horizontalHalfX, -35.0f - horizontalHalfZ, -35.0f + horizontalHalfZ));
+            roadRects.Add(new RoadRect(39.0f - horizontalHalfX, 39.0f + horizontalHalfX, 35.0f - horizontalHalfZ, 35.0f + horizontalHalfZ));
+        }
+
+
+
         private int CreatePavement(int objectCBIndex)
         {
             //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
@@ -1414,8 +1524,6 @@ namespace ProiectSPG
 
             return objectCBIndex;
         }
-    
-
 
 
         private int CreateStreetLamp(int objectCBIndex, float x, float z)
@@ -1455,6 +1563,7 @@ namespace ProiectSPG
                        Matrix.Translation(x, sphereY, z)
             );
 
+            // real light starts exactly from the sphere center
             streetLampLightPositions.Add(new Vector3(x, sphereY, z));
 
             return objectCBIndex;
@@ -1613,6 +1722,8 @@ namespace ProiectSPG
             shadowTransform = lightView * lightProj * T;
         }
 
+        
+
         //CAR
         private int CreateCar(int objectCBIndex, float carX, float carY, float carZ)
         {
@@ -1694,22 +1805,348 @@ namespace ProiectSPG
             return objectCBIndex;
         }
 
-        private int CreateCars(int objectCBIndex)
-        {
-            objectCBIndex = CreateCar(objectCBIndex, -1.5f, 0.8f, -20.0f);
-            objectCBIndex = CreateCar(objectCBIndex, -1.5f, 0.8f, 20.0f);
 
-            objectCBIndex = CreateCar(objectCBIndex, 24.5f, 0.8f, -35.0f);
-            objectCBIndex = CreateCar(objectCBIndex, 24.5f, 0.8f, 35.0f);
+        private int CreatePlayerCar(int objectCBIndex, float carX, float carY, float carZ)
+        {
+            playerCarX = carX;
+            playerCarY = carY;
+            playerCarZ = carZ;
+            playerCarRotationY = 0.0f;
+
+            float wheelY = carY - 0.35f;
+            float wheelOffsetX = 1.0f;
+            float wheelOffsetZ = 0.78f;
+
+            Matrix carRotation = Matrix.Identity;
+            Matrix wheelRotation = Matrix.RotationZ(MathUtil.PiOverTwo);
+
+            playerCarBody = AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carBodyMaterial",
+                "shapeGeo",
+                "carBody",
+                world: carRotation * Matrix.Translation(carX, carY, carZ)
+            );
+
+            playerCarCabin = AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carCabinMaterial",
+                "shapeGeo",
+                "carCabin",
+                world: carRotation * Matrix.Translation(carX + 0.2f, carY + 0.55f, carZ)
+            );
+
+            playerCarWheelFL = AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX - wheelOffsetX, wheelY, carZ - wheelOffsetZ)
+            );
+
+            playerCarWheelFR = AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX - wheelOffsetX, wheelY, carZ + wheelOffsetZ)
+            );
+
+            playerCarWheelBL = AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX + wheelOffsetX, wheelY, carZ - wheelOffsetZ)
+            );
+
+            playerCarWheelBR = AddRenderItem(
+                RenderLayer.Opaque,
+                objectCBIndex++,
+                "carWheelMaterial",
+                "shapeGeo",
+                "wheel",
+                world: wheelRotation * carRotation *
+                       Matrix.Translation(carX + wheelOffsetX, wheelY, carZ + wheelOffsetZ)
+            );
 
             return objectCBIndex;
         }
 
-        private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
-           Matrix? world = null, Matrix? textureTransform = null)
+
+        private int CreateStaticCar(int objectCBIndex, float carX, float carY, float carZ)
+        {
+            objectCBIndex = CreateCar(objectCBIndex, carX, carY, carZ);
+
+            // Modelul vizual are aproximativ:
+            // width = 1.6 => halfWidth = 0.8
+            // length = 6.4 => halfLength = 3.2
+            // Dar pentru gameplay facem collider-ul puțin mai mic.
+            staticCarColliders.Add(new CarCollider(
+                carX,
+                carZ,
+                0.75f,
+                2.8f
+            ));
+
+            return objectCBIndex;
+        }
+        private int CreateCars(int objectCBIndex)
+        {
+            // controllable car
+            objectCBIndex = CreatePlayerCar(objectCBIndex, -1.5f, 0.8f, -20.0f);
+
+            // static cars
+            objectCBIndex = CreateStaticCar(objectCBIndex, -1.5f, 0.8f, 20.0f);
+
+            objectCBIndex = CreateStaticCar(objectCBIndex, 24.5f, 0.8f, -35.0f);
+            objectCBIndex = CreateStaticCar(objectCBIndex, 24.5f, 0.8f, 35.0f);
+
+            return objectCBIndex;
+        }
+        // Check if the player's car is on the road by testing its bounding circle against the road rectangles
+        private bool IsPointOnRoad(float x, float z)
+        {
+            foreach (RoadRect road in roadRects)
+            {
+                if (x >= road.MinX && x <= road.MaxX &&
+                    z >= road.MinZ && z <= road.MaxZ)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+       private bool IsCarOnRoad(float x, float z, float rotationY)
+{
+    Vector3 forward = new Vector3(
+        (float)System.Math.Sin(rotationY),
+        0.0f,
+        (float)System.Math.Cos(rotationY)
+    );
+
+    Vector3 right = new Vector3(
+        (float)System.Math.Cos(rotationY),
+        0.0f,
+        -(float)System.Math.Sin(rotationY)
+    );
+
+    float carHalfLength = 3.2f; // carBody length 6.4 / 2
+    float carHalfWidth = 0.8f;  // carBody width 1.6 / 2
+
+    Vector3 center = new Vector3(x, 0.0f, z);
+
+    Vector3 frontLeft =
+        center + forward * carHalfLength - right * carHalfWidth;
+
+    Vector3 frontRight =
+        center + forward * carHalfLength + right * carHalfWidth;
+
+    Vector3 backLeft =
+        center - forward * carHalfLength - right * carHalfWidth;
+
+    Vector3 backRight =
+        center - forward * carHalfLength + right * carHalfWidth;
+
+    return
+        IsPointOnRoad(frontLeft.X, frontLeft.Z) &&
+        IsPointOnRoad(frontRight.X, frontRight.Z) &&
+        IsPointOnRoad(backLeft.X, backLeft.Z) &&
+        IsPointOnRoad(backRight.X, backRight.Z);
+}
+
+        //collision with cars
+        private bool CollidesWithStaticCars(float x, float z, float rotationY)
+        {
+            Vector3 forward = new Vector3(
+                (float)System.Math.Sin(rotationY),
+                0.0f,
+                (float)System.Math.Cos(rotationY)
+            );
+
+            Vector3 right = new Vector3(
+                (float)System.Math.Cos(rotationY),
+                0.0f,
+                -(float)System.Math.Sin(rotationY)
+            );
+
+            // Collider puțin mai mic decât modelul vizual al mașinii controlabile.
+            float playerHalfLength = 2.7f;
+            float playerHalfWidth = 0.65f;
+
+            Vector3 center = new Vector3(x, 0.0f, z);
+
+            Vector3[] playerPoints =
+            {
+        center + forward * playerHalfLength - right * playerHalfWidth, // front-left
+        center + forward * playerHalfLength + right * playerHalfWidth, // front-right
+        center - forward * playerHalfLength - right * playerHalfWidth, // back-left
+        center - forward * playerHalfLength + right * playerHalfWidth, // back-right
+        center
+    };
+
+            foreach (CarCollider car in staticCarColliders)
+            {
+                foreach (Vector3 p in playerPoints)
+                {
+                    bool insideStaticCar =
+                        p.X >= car.X - car.HalfWidth &&
+                        p.X <= car.X + car.HalfWidth &&
+                        p.Z >= car.Z - car.HalfLength &&
+                        p.Z <= car.Z + car.HalfLength;
+
+                    if (insideStaticCar)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+
+        private void UpdatePlayerCar(GameTimer gameTimer)
+        {
+            float dt = gameTimer.DeltaTime;
+
+            float newX = playerCarX;
+            float newZ = playerCarZ;
+            float newRotationY = playerCarRotationY;
+
+            if (IsKeyDown(Keys.J))
+            {
+                newRotationY += playerCarTurnSpeed * dt;
+            }
+
+            if (IsKeyDown(Keys.L))
+            {
+                newRotationY -= playerCarTurnSpeed * dt;
+            }
+
+            Vector3 forward = new Vector3(
+                (float)System.Math.Sin(newRotationY),
+                0.0f,
+                (float)System.Math.Cos(newRotationY)
+            );
+
+            if (IsKeyDown(Keys.I))
+            {
+                newX += forward.X * playerCarSpeed * dt;
+                newZ += forward.Z * playerCarSpeed * dt;
+            }
+
+            if (IsKeyDown(Keys.K))
+            {
+                newX -= forward.X * playerCarSpeed * dt;
+                newZ -= forward.Z * playerCarSpeed * dt;
+            }
+
+            playerCarRotationY = newRotationY;
+
+            if (IsCarOnRoad(newX, newZ, newRotationY) &&
+     !CollidesWithStaticCars(newX, newZ, newRotationY))
+            {
+                playerCarX = newX;
+                playerCarZ = newZ;
+            }
+            UpdatePlayerCarWorldMatrices();
+        }
+    
+        private void UpdatePlayerCarWorldMatrices()
+        {
+            if (playerCarBody == null)
+                return;
+
+            float wheelOffsetX = 1.0f;
+            float wheelOffsetZ = 0.78f;
+
+            Matrix carRotation = Matrix.RotationY(playerCarRotationY);
+            Matrix carTranslation = Matrix.Translation(playerCarX, playerCarY, playerCarZ);
+
+            Matrix carWorld = carRotation * carTranslation;
+
+            Matrix wheelRotation = Matrix.RotationZ(MathUtil.PiOverTwo);
+
+            playerCarBody.World =
+                carWorld;
+
+            playerCarCabin.World =
+                Matrix.Translation(0.2f, 0.55f, 0.0f) *
+                carWorld;
+
+            playerCarWheelFL.World =
+                wheelRotation *
+                Matrix.Translation(-wheelOffsetX, -0.35f, -wheelOffsetZ) *
+                carWorld;
+
+            playerCarWheelFR.World =
+                wheelRotation *
+                Matrix.Translation(-wheelOffsetX, -0.35f, wheelOffsetZ) *
+                carWorld;
+
+            playerCarWheelBL.World =
+                wheelRotation *
+                Matrix.Translation(wheelOffsetX, -0.35f, -wheelOffsetZ) *
+                carWorld;
+
+            playerCarWheelBR.World =
+                wheelRotation *
+                Matrix.Translation(wheelOffsetX, -0.35f, wheelOffsetZ) *
+                carWorld;
+
+            playerCarBody.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+            playerCarCabin.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+            playerCarWheelFL.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+            playerCarWheelFR.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+            playerCarWheelBL.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+            playerCarWheelBR.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+        }
+        //private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
+        //   Matrix? world = null, Matrix? textureTransform = null)
+        //{
+        //    MeshGeometry meshGeometry = geometries[geometryName];
+        //    SubmeshGeometry submesh = meshGeometry.DrawArguments[submeshName];
+        //    var renderItem = new RenderItem
+        //    {
+        //        ObjCBIndex = objCBIndex,
+        //        Material = materials[materialName],
+        //        MeshGeometry = meshGeometry,
+        //        IndexCount = submesh.IndexCount,
+        //        StartIndexLocation = submesh.StartIndexLocation,
+        //        BaseVertexLocation = submesh.BaseVertexLocation,
+        //        World = world ?? Matrix.Identity,
+        //        TexTransform = textureTransform ?? Matrix.Identity
+        //    };
+        //    renderItemLayers[layer].Add(renderItem);
+        //    allRenderItems.Add(renderItem);
+        //}
+
+
+
+
+
+
+
+
+
+
+
+
+
+        private RenderItem AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
+   Matrix? world = null, Matrix? textureTransform = null)
         {
             MeshGeometry meshGeometry = geometries[geometryName];
             SubmeshGeometry submesh = meshGeometry.DrawArguments[submeshName];
+
             var renderItem = new RenderItem
             {
                 ObjCBIndex = objCBIndex,
@@ -1721,11 +2158,12 @@ namespace ProiectSPG
                 World = world ?? Matrix.Identity,
                 TexTransform = textureTransform ?? Matrix.Identity
             };
+
             renderItemLayers[layer].Add(renderItem);
             allRenderItems.Add(renderItem);
+
+            return renderItem;
         }
-
-
         private void OnKeyboardInput(GameTimer gameTimer)
         {
             float dt = gameTimer.DeltaTime;
