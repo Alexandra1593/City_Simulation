@@ -105,6 +105,80 @@ namespace ProiectSPG
         }
         private readonly List<CarCollider> staticCarColliders = new List<CarCollider>();
 
+
+
+        //Random moving objects-- ducks
+
+        private struct Duck
+        {
+            public RenderItem RenderItem;
+            public Vector3 Position;
+            public Vector3 Direction;
+            public float Speed;
+            public float ChangeDirectionTimer;
+            public float FloatPhase;
+        }
+
+        private readonly List<Duck> ducks = new List<Duck>();
+        private readonly System.Random random = new System.Random();
+
+        private float duckMinX = 12.3f;
+        private float duckMaxX = 14.7f;
+        private float duckMinZ = -100.0f;
+        private float duckMaxZ = 100.0f;
+        private float duckBaseY = 0.05f;
+
+        private readonly float[] bridgeZPositions =
+{
+    -52.0f,
+    -36.0f,
+    -12.0f,
+     12.0f,
+     36.0f,
+     52.0f
+};
+
+
+        //Collision between duck and bridge
+        private bool IsInBridgeZone(float z)
+        {
+            foreach (float bridgeZ in bridgeZPositions)
+            {
+                if (System.Math.Abs(z - bridgeZ) < bridgeBlockHalfLength)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
+        private float bridgeBlockHalfLength = 3.5f;
+
+        // PEDESTRIAN MOVEMENT VARIABLES
+        private struct Pedestrian
+        {
+            public RenderItem RenderItem;
+            public Vector3 Position;
+
+            public float LeftX;
+            public float RightX;
+            public float TargetX;
+
+            public float Z;
+            public float Speed;
+
+            public float WaitTimer;
+            public float WaitDuration;
+
+            public float HalfWidth;
+            public float HalfDepth;
+        }
+
+        private readonly List<Pedestrian> pedestrians = new List<Pedestrian>();
+
+
         private InputLayoutDescription inputLayout;
 
         private readonly IList<RenderItem> allRenderItems = new List<RenderItem>();
@@ -204,6 +278,9 @@ namespace ProiectSPG
             UpdateObjectCBs();
             UpdateMaterialBuffer();
             UpdateMainPassCB(gameTimer);
+            UpdateDucks(gameTimer);
+            UpdatePedestrians(gameTimer);
+
         }
 
         protected override void Draw(GameTimer gameTimer)
@@ -422,7 +499,7 @@ namespace ProiectSPG
             mainPassCB.AmbientLight = new Vector4(0.25f, 0.25f, 0.25f, 1.0f);
 
             mainPassCB.Lights[0].Direction = Vector3.Normalize(new Vector3(1.0f, -0.35f, 0.4f));
-            mainPassCB.Lights[0].Strength = new Vector3(0.9f, 0.9f, 1.0f);
+            mainPassCB.Lights[0].Strength = new Vector3(1.0f, 0.9f, 0.7f);
 
 
             mainPassCB.Lights[1].Strength = new Vector3(0.05f, 0.05f, 0.05f);
@@ -470,25 +547,6 @@ namespace ProiectSPG
             mainPassCB.ShadowTransform = Matrix.Transpose(shadowTransform);
 
 
-
-                //// light origin = sphere center
-                //mainPassCB.Lights[lightIndex].Position = lampPos;
-
-                //// light points down from the sphere
-                //mainPassCB.Lights[lightIndex].Direction = new Vector3(0.0f, -1.5f, -0.0f);
-
-                //// warm lamp color
-                //mainPassCB.Lights[lightIndex].Strength = new Vector3(1.0f, 1.0f, 0.5f);
-
-                //// starts bright near the sphere, reaches street below
-                //mainPassCB.Lights[lightIndex].FalloffStart = 1.0f;
-                //mainPassCB.Lights[lightIndex].FalloffEnd = 10.0f;
-
-                //// smaller value = wider cone around the sphere
-                //mainPassCB.Lights[lightIndex].SpotPower = 1.0f;
-            
-
-
             CurrentFrameResource.PassCB.CopyData(0, ref mainPassCB);
             }
 
@@ -517,6 +575,9 @@ namespace ProiectSPG
             AddTexture("riverWalls", "riverWalls.dds");//15
             AddTexture("wood", "wood.dds");//16
             AddTexture("moon", "moon.dds"); //17
+            AddTexture("duck", "duck.dds");//18
+            AddTexture("carMaterial", "carMaterial.dds");//19
+            AddTexture("pedestrian", "pedestrian.dds");//20)
 
         }
 
@@ -533,14 +594,7 @@ namespace ProiectSPG
 
         private void CreateRootSignature()
         {
-            //var slotRootParameters = new[]
-            //{
-            //    new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 0), RootParameterType.ConstantBufferView),
-            //    new RootParameter(ShaderVisibility.All, new RootDescriptor(1, 0), RootParameterType.ConstantBufferView),
-            //    new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 1), RootParameterType.ShaderResourceView),
-            //    new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 1, 0)),
-            //    new RootParameter(ShaderVisibility.All, new DescriptorRange(DescriptorRangeType.ShaderResourceView, 5, 1))
-            //};
+          
             var slotRootParameters = new[]
 {
     new RootParameter(ShaderVisibility.All, new RootDescriptor(0, 0), RootParameterType.ConstantBufferView), // b0
@@ -592,7 +646,10 @@ namespace ProiectSPG
                 textures["water"].Resource,
                 textures["riverWalls"].Resource,
                 textures["wood"].Resource,
-                textures["moon"].Resource
+                textures["moon"].Resource,
+                textures["duck"].Resource,
+                textures["carMaterial"].Resource,
+                textures["pedestrian"].Resource
             };
             Resource skyTexture = textures["skyCubeMap"].Resource;
 
@@ -627,7 +684,7 @@ namespace ProiectSPG
             shaderResourceViewDescription.Format = skyTexture.Description.Format;
             Device.CreateShaderResourceView(skyTexture, shaderResourceViewDescription, cpuDescriptor);
 
-            skyTexHeapIndex = 17;
+            skyTexHeapIndex = 20;
 
 
 
@@ -649,7 +706,7 @@ namespace ProiectSPG
             };
 
             CpuDescriptorHandle shadowSrvCpuHandle = srvDescriptorHeap.CPUDescriptorHandleForHeapStart;
-            shadowSrvCpuHandle += 20 * CbvSrvUavDescriptorSize; // choose free slot
+            shadowSrvCpuHandle += 21 * CbvSrvUavDescriptorSize; // choose free slot
             Device.CreateShaderResourceView(shadowMap, shadowSrvDesc, shadowSrvCpuHandle);
         }
 
@@ -661,8 +718,6 @@ namespace ProiectSPG
             shaders["skyVS"] = D3DHelper.CompileShader("Shaders\\Sky.hlsl", "VS", "vs_5_1");
             shaders["skyPS"] = D3DHelper.CompileShader("Shaders\\Sky.hlsl", "PS", "ps_5_1");
 
-            //shaders["moonVS"] = D3DHelper.CompileShader("Shaders\\Moon.hlsl", "VS", "vs_5_1");
-            //shaders["moonPS"] = D3DHelper.CompileShader("Shaders\\Moon.hlsl", "PS", "ps_5_1");
 
             shaders["shadowVS"] = D3DHelper.CompileShader("Shaders\\Shadow.hlsl", "VS", "vs_5_1");
             //shaders["shadowPS"] = D3DHelper.CompileShader("Shaders\\Shadow.hlsl", "PS", "ps_5_1");
@@ -697,7 +752,7 @@ namespace ProiectSPG
             SubmeshGeometry smallStreetGrid = AppendMeshData(GeometryGenerator.CreateGrid(22.0f, 5.5f, 4, 2), vertices, indices);
 
             SubmeshGeometry carBody = AppendMeshData(GeometryGenerator.CreateBox(1.6f, 0.7f, 6.4f, 0), vertices, indices);
-            SubmeshGeometry carCabin = AppendMeshData(GeometryGenerator.CreateBox(0.6f, 0.7f, 2.5f, 0), vertices, indices);
+            SubmeshGeometry carCabin = AppendMeshData(GeometryGenerator.CreateBox(1.4f, 0.7f, 2.5f, 0), vertices, indices);
             SubmeshGeometry wheel = AppendMeshData(GeometryGenerator.CreateCylinder(0.35f, 0.35f, 0.25f, 20, 20), vertices, indices);
             SubmeshGeometry headlight = AppendMeshData(GeometryGenerator.CreateSphere(0.12f, 16, 16), vertices, indices);
 
@@ -719,8 +774,7 @@ namespace ProiectSPG
             geo.DrawArguments["carBody"] = carBody;
             geo.DrawArguments["carCabin"] = carCabin;
             geo.DrawArguments["wheel"] = wheel;
-            geo.DrawArguments["headlight"] = headlight; 
-
+            geo.DrawArguments["headlight"] = headlight;
             geometries[geo.Name] = geo;
         }
 
@@ -953,7 +1007,7 @@ namespace ProiectSPG
             {
                 Name = "sky",
                 MaterialConstantBufferIndex = 12,
-                DiffuseSrvHeapIndex = 18,
+                DiffuseSrvHeapIndex = 20,
                 DiffuseAlbedo = Vector4.One,
                 FresnelR0 = new Vector3(0.1f),
                 Roughness = 1.0f
@@ -1031,8 +1085,8 @@ namespace ProiectSPG
             {
                 Name = "carBodyMaterial",
                 MaterialConstantBufferIndex = 20,
-                DiffuseSrvHeapIndex = 10,
-                DiffuseAlbedo = new Vector4(0.85f, 0.10f, 0.10f, 1.0f),
+                DiffuseSrvHeapIndex = 18,
+                DiffuseAlbedo = new Vector4(0.20f, 0.25f, 0.35f, 1.0f),
                 FresnelR0 = new Vector3(0.04f),
                 Roughness = 0.25f
             });
@@ -1041,7 +1095,7 @@ namespace ProiectSPG
             {
                 Name = "carCabinMaterial",
                 MaterialConstantBufferIndex = 21,
-                DiffuseSrvHeapIndex = 10,
+                DiffuseSrvHeapIndex = 18,
                 DiffuseAlbedo = new Vector4(0.20f, 0.25f, 0.35f, 1.0f),
                 FresnelR0 = new Vector3(0.03f),
                 Roughness = 0.35f
@@ -1056,6 +1110,27 @@ namespace ProiectSPG
                 FresnelR0 = new Vector3(0.02f),
                 Roughness = 0.85f
             });
+
+
+            AddMaterial(new Material
+            {
+                Name = "duckMaterial",
+                MaterialConstantBufferIndex = 24,
+                DiffuseSrvHeapIndex = 17,
+                DiffuseAlbedo = new Vector4(1.0f, 1.0f, 1.0f, 1.0f),
+                FresnelR0 = new Vector3(0.01f),
+                Roughness = 0.5f
+            });
+
+            AddMaterial(new Material
+            {
+                Name = "pedestrianMaterial",
+                MaterialConstantBufferIndex = 25, 
+                DiffuseSrvHeapIndex = 19,         
+                DiffuseAlbedo = new Vector4(1.0f, 1.0f, 1.0f, 1.0f),
+                FresnelR0 = new Vector3(0.01f),
+                Roughness = 0.5f
+            });
         }
 
         private void AddMaterial(Material material)
@@ -1068,24 +1143,12 @@ namespace ProiectSPG
 
             int objectCBIndex = 0;
 
-            AddRenderItem(
-            RenderLayer.Opaque,
-            objectCBIndex++,
-            "terrainMaterial",
-            "shapeGeo",
-            "terrainGrid",
-            world: Matrix.Translation(13.0f, -0.2f, 0.0f),
-            textureTransform: Matrix.Scaling(12.0f, 12.0f, 1.0f)
+            AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"terrainMaterial","shapeGeo","terrainGrid",
+                world: Matrix.Translation(13.0f, -0.2f, 0.0f),textureTransform: Matrix.Scaling(12.0f, 12.0f, 1.0f)
             );
            AddRenderItem(RenderLayer.Sky, objectCBIndex++, "sky", "shapeGeo", "sphere", world: Matrix.Scaling(5000.0f));
-            AddRenderItem(
-   // RenderLayer.Moon,
-   RenderLayer.Opaque,
-    objectCBIndex++,
-    "moonMaterial",
-    "shapeGeo",
-    "sphere",
-    world: Matrix.Scaling(40.0f, 40.0f, 40.0f) * Matrix.Translation(-300.0f, 200.0f, -400.0f)
+           AddRenderItem(RenderLayer.Opaque,objectCBIndex++,"moonMaterial","shapeGeo","sphere",
+               world: Matrix.Scaling(40.0f, 40.0f, 40.0f) * Matrix.Translation(-300.0f, 200.0f, -400.0f)
 );
 
             AddRenderItem(RenderLayer.Sky, objectCBIndex++, "sky", "shapeGeo", "sphere", world: Matrix.Scaling(5000.0f));
@@ -1102,6 +1165,8 @@ namespace ProiectSPG
             objectCBIndex = CreateBridges(objectCBIndex);
             objectCBIndex = CreateStreetLamps(objectCBIndex);
             objectCBIndex = CreateCars(objectCBIndex);
+            objectCBIndex = CreateDucks(objectCBIndex);
+            objectCBIndex = CreatePedestrians(objectCBIndex);
         }
        
         private int CreateStreets(int objectCBIndex)
@@ -1145,8 +1210,7 @@ namespace ProiectSPG
             roadRects.Clear();
 
             // Străzile verticale mari.
-            // În CreateShapeGeometries ai grid = CreateGrid(7.0f, 250.0f...)
-            // Deci fiecare stradă verticală are lățime aproximativ 7, adică half width = 3.5.
+         
             float verticalHalfWidth = 3.5f;
             float verticalMinZ = -125.0f;
             float verticalMaxZ = 125.0f;
@@ -1157,16 +1221,13 @@ namespace ProiectSPG
             roadRects.Add(new RoadRect(52.0f - verticalHalfWidth, 52.0f + verticalHalfWidth, verticalMinZ, verticalMaxZ)); // x = 52
 
             // Străzile orizontale mici.
-            // smallStreetGrid = CreateGrid(22.0f, 5.5f...)
-            // Deci half width X = 11, half width Z = 2.75.
+           
             float horizontalHalfX = 11.0f;
             float horizontalHalfZ = 2.75f;
 
-            // între -26 și 0
             roadRects.Add(new RoadRect(-14.0f - horizontalHalfX, -14.0f + horizontalHalfX, -35.0f - horizontalHalfZ, -35.0f + horizontalHalfZ));
             roadRects.Add(new RoadRect(-14.0f - horizontalHalfX, -14.0f + horizontalHalfX, 35.0f - horizontalHalfZ, 35.0f + horizontalHalfZ));
 
-            // între 26 și 52
             roadRects.Add(new RoadRect(39.0f - horizontalHalfX, 39.0f + horizontalHalfX, -35.0f - horizontalHalfZ, -35.0f + horizontalHalfZ));
             roadRects.Add(new RoadRect(39.0f - horizontalHalfX, 39.0f + horizontalHalfX, 35.0f - horizontalHalfZ, 35.0f + horizontalHalfZ));
         }
@@ -1175,15 +1236,11 @@ namespace ProiectSPG
 
         private int CreatePavement(int objectCBIndex)
         {
-            //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-            //    textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(-6.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
                 textureTransform: Matrix.Scaling(1.0f, 100.0f, 3.0f), world: Matrix.Translation(+6.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
                 textureTransform: Matrix.Scaling(1.0f, 100.0f, 3.0f), world: Matrix.Translation(19.5f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
-            //    textureTransform: Matrix.Scaling(1.0f, 100.0f, 2.0f), world: Matrix.Translation(32.5f, 0.0f, 0));
-            //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
                 textureTransform: Matrix.Scaling(10.0f, 100.0f, 3.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) *  Matrix.Translation(-13.1f, 0.0f, 0));
             AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "pavementMaterial", "shapeGeo", "pavementGrid",
                 textureTransform: Matrix.Scaling(10.0f, 100.0f, 3.0f), world: Matrix.Scaling(3.2f, 100.0f, 1.0f) * Matrix.Translation(39.0f, 0.0f, 0));
@@ -1214,7 +1271,7 @@ namespace ProiectSPG
         {
             for (int i = 0; i < 5; ++i)
             {
-                // there are 4 rows with buildings
+                // there are 4 rows with roofs
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
                   world: Matrix.Translation(-7.0f, 8.2f, -60.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "roofMaterial", "shapeGeo", "roofBox",
@@ -1235,15 +1292,11 @@ namespace ProiectSPG
         {
             for (int i = 0; i < 5; ++i)
             {
-                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
-                //    world: Matrix.Translation(-7.0f, 1.5f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+7.0f, 1.5f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+19.0f, 1.5f, -87.9f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree1Material", "shapeGeo", "rectangle",
-                //    world: Matrix.Translation(+32.5f, 1.5f, -87.9f + i * 40.0f));
-
+      
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(-7.0f, 1.5f, -80.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
@@ -1253,14 +1306,10 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree2Material", "shapeGeo", "rectangle",
                    world: Matrix.Translation(+32.5f, 1.5f, -80.0f + i * 40.0f));
 
-                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
-                //    world: Matrix.Translation(-7.0f, 1.5f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+7.0f, 1.5f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(+19.0f, 1.5f, -72.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
-                //   world: Matrix.Translation(+32.5f, 1.5f, -72.0f + i * 40.0f));
 
                 AddRenderItem(RenderLayer.Transparent, objectCBIndex++, "tree3Material", "shapeGeo", "rectangle",
                     world: Matrix.Translation(-7.0f, 1.5f, -64.0f + i * 40.0f));
@@ -1323,14 +1372,10 @@ namespace ProiectSPG
         {
             for (int i = 0; i < 5; ++i)
             {
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                //    world: Matrix.Translation(-7.0f, 0.1f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+7.0f, 0.1f, -87.9f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+19.0f, 0.1f, -87.9f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                //    world: Matrix.Translation(+32.5f, 0.1f, -87.9f + i * 40.0f));
 
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(-7.0f, 0.1f, -80.0f + i * 40.0f));
@@ -1341,15 +1386,10 @@ namespace ProiectSPG
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+32.5f, 0.1f, -80.0f + i * 40.0f));
 
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                //    world: Matrix.Translation(-7.0f, 0.1f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+7.0f, 0.1f, -72.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(+19.0f, 0.1f, -72.0f + i * 40.0f));
-                //AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
-                //    world: Matrix.Translation(+32.5f, 0.1f, -72.0f + i * 40.0f));
-
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
                     world: Matrix.Translation(-7.0f, 0.1f, -64.0f + i * 40.0f));
                 AddRenderItem(RenderLayer.Opaque, objectCBIndex++, "grassMaterial", "shapeGeo", "grassGrid",
@@ -1465,7 +1505,7 @@ namespace ProiectSPG
                 "box",
                 world: Matrix.Scaling(0.1f, 0.1f, 80.0f) *
                Matrix.Translation(9.8f, 0.1f, 0.0f),
-               textureTransform: Matrix.Scaling(1.0f, 80.0f, 1.0f)
+              textureTransform: Matrix.Scaling(1.0f, 30.0f, 1.0f)
             );
 
             // Right wall
@@ -1477,7 +1517,7 @@ namespace ProiectSPG
                 "box",
                world: Matrix.Scaling(0.1f, 0.1f, 80.0f) *
                Matrix.Translation(16.2f, 0.1f, 0.0f),
-               textureTransform: Matrix.Scaling(1.0f, 80.0f, 800.0f)
+               textureTransform: Matrix.Scaling(1.0f, 30.0f, 1.0f)
             );
 
             return objectCBIndex;
@@ -1742,7 +1782,6 @@ namespace ProiectSPG
                 "carBody",
                 world: carRotation * Matrix.Translation(carX, carY, carZ)
             );
-
             // cabin
             AddRenderItem(
                 RenderLayer.Opaque,
@@ -1750,7 +1789,7 @@ namespace ProiectSPG
                 "carCabinMaterial",
                 "shapeGeo",
                 "carCabin",
-                world: carRotation * Matrix.Translation(carX + 0.2f, carY + 0.55f, carZ)
+                world: carRotation * Matrix.Translation(carX , carY + 0.55f, carZ)
             );
 
             // wheel rotation
@@ -1886,10 +1925,6 @@ namespace ProiectSPG
         {
             objectCBIndex = CreateCar(objectCBIndex, carX, carY, carZ);
 
-            // Modelul vizual are aproximativ:
-            // width = 1.6 => halfWidth = 0.8
-            // length = 6.4 => halfLength = 3.2
-            // Dar pentru gameplay facem collider-ul puțin mai mic.
             staticCarColliders.Add(new CarCollider(
                 carX,
                 carZ,
@@ -2050,9 +2085,9 @@ namespace ProiectSPG
             }
 
             playerCarRotationY = newRotationY;
-
             if (IsCarOnRoad(newX, newZ, newRotationY) &&
-     !CollidesWithStaticCars(newX, newZ, newRotationY))
+                !CollidesWithStaticCars(newX, newZ, newRotationY) &&
+                !CollidesWithPedestrians(newX, newZ, newRotationY))
             {
                 playerCarX = newX;
                 playerCarZ = newZ;
@@ -2109,35 +2144,312 @@ namespace ProiectSPG
             playerCarWheelBL.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
             playerCarWheelBR.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
         }
-        //private void AddRenderItem(RenderLayer layer, int objCBIndex, string materialName, string geometryName, string submeshName,
-        //   Matrix? world = null, Matrix? textureTransform = null)
-        //{
-        //    MeshGeometry meshGeometry = geometries[geometryName];
-        //    SubmeshGeometry submesh = meshGeometry.DrawArguments[submeshName];
-        //    var renderItem = new RenderItem
-        //    {
-        //        ObjCBIndex = objCBIndex,
-        //        Material = materials[materialName],
-        //        MeshGeometry = meshGeometry,
-        //        IndexCount = submesh.IndexCount,
-        //        StartIndexLocation = submesh.StartIndexLocation,
-        //        BaseVertexLocation = submesh.BaseVertexLocation,
-        //        World = world ?? Matrix.Identity,
-        //        TexTransform = textureTransform ?? Matrix.Identity
-        //    };
-        //    renderItemLayers[layer].Add(renderItem);
-        //    allRenderItems.Add(renderItem);
-        //}
 
 
 
 
 
 
+        //Create ducks
+
+        private int CreateDucks(int objectCBIndex)
+        {
+            ducks.Clear();
+
+            int duckCount = 4;
+
+            for (int i = 0; i < duckCount; i++)
+            {
+                Vector3 pos = new Vector3(
+                    RandomFloat(duckMinX, duckMaxX),
+                    duckBaseY,
+                    RandomFloat(duckMinZ, duckMaxZ)
+                );
+
+                Vector3 dir = RandomDuckDirection();
+
+                Matrix world =
+                    Matrix.Scaling(0.7f, 0.7f, 1.0f) *
+                    Matrix.RotationY(0.0f) *
+                    Matrix.Translation(pos);
+
+                RenderItem duckRenderItem = AddRenderItem(
+                    RenderLayer.Transparent,
+                    objectCBIndex++,
+                    "duckMaterial",
+                    "shapeGeo",
+                    "rectangle",
+                    world: world
+                );
+
+                Duck duck = new Duck
+                {
+                    RenderItem = duckRenderItem,
+                    Position = pos,
+                    Direction = dir,
+                    Speed =RandomFloat(0.2f, 0.5f),
+                    ChangeDirectionTimer = RandomFloat(1.0f, 5.0f),
+                    FloatPhase = RandomFloat(0.0f, MathUtil.TwoPi)
+                };
+
+                ducks.Add(duck);
+            }
+
+            return objectCBIndex;
+        }
+
+
+        //Helper for random movement
+        private float RandomFloat(float min, float max)
+        {
+            return min + (float)random.NextDouble() * (max - min);
+        }
+
+        private Vector3 RandomDuckDirection()
+        {
+            float angle = RandomFloat(0.0f, MathUtil.TwoPi);
+
+            Vector3 dir = new Vector3(
+                (float)System.Math.Cos(angle),
+                0.0f,
+                (float)System.Math.Sin(angle)
+            );
+
+            dir.Normalize();
+            return dir;
+        }
+
+        private void UpdateDucks(GameTimer gameTimer)
+        {
+            float dt = gameTimer.DeltaTime;
+            float totalTime = gameTimer.TotalTime;
 
 
 
 
+            for (int i = 0; i < ducks.Count; i++)
+            {
+                Duck duck = ducks[i];
+
+                duck.ChangeDirectionTimer -= dt;
+
+                if (duck.ChangeDirectionTimer <= 0.0f)
+                {
+                    duck.Direction = RandomDuckDirection();
+                    duck.ChangeDirectionTimer = RandomFloat(2.0f, 5.0f);
+                }
+
+                Vector3 nextPosition = duck.Position + duck.Direction * duck.Speed * dt;
+
+                // Bridge collision
+                if (IsInBridgeZone(nextPosition.Z))
+                {
+                    duck.Direction.Z = -duck.Direction.Z;
+                    duck.Direction.X += RandomFloat(-0.4f, 0.4f);
+
+                    if (duck.Direction.LengthSquared() > 0.001f)
+                        duck.Direction.Normalize();
+
+                    duck.ChangeDirectionTimer = RandomFloat(1.0f, 3.0f);
+                }
+                else
+                {
+                    duck.Position = nextPosition;
+                }
+
+                duck.Position += duck.Direction * duck.Speed * dt;
+
+                // Water limits
+                if (duck.Position.X < duckMinX || duck.Position.X > duckMaxX)
+                {
+                    duck.Direction.X = -duck.Direction.X;
+                    duck.Position.X = MathUtil.Clamp(duck.Position.X, duckMinX, duckMaxX);
+                }
+
+                if (duck.Position.Z < duckMinZ || duck.Position.Z > duckMaxZ)
+                {
+                    duck.Direction.Z = -duck.Direction.Z;
+                    duck.Position.Z = MathUtil.Clamp(duck.Position.Z, duckMinZ, duckMaxZ);
+                }
+
+                //Floating on water
+                duck.Position.Y = duckBaseY + 0.05f * (float)System.Math.Sin(totalTime * 2.0f + duck.FloatPhase);
+
+                float yaw = (float)System.Math.Atan2(duck.Direction.X, duck.Direction.Z);
+
+                Matrix scale = Matrix.Scaling(0.7f, 0.7f, 1.0f);
+                Matrix rotation = Matrix.RotationY(yaw);
+                Matrix translation = Matrix.Translation(duck.Position);
+
+                duck.RenderItem.World = scale * rotation * translation;
+                duck.RenderItem.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+
+                ducks[i] = duck;
+            }
+        }
+
+
+        //Create Pedestrian-- objects that move according to a defined rule.
+
+
+
+        private int CreatePedestrians(int objectCBIndex)
+        {
+            pedestrians.Clear();
+
+            // Pedestrian 1 starts on the left and moves to the right.
+            Vector3 pos1 = new Vector3(-5.2f, 1.5f, -10.0f);
+
+            RenderItem ped1RenderItem = AddRenderItem(
+                RenderLayer.Transparent,
+                objectCBIndex++,
+                "pedestrianMaterial",
+                "shapeGeo",
+                "rectangle",
+                world: Matrix.Scaling(0.45f, 0.9f, 1.0f) * Matrix.Translation(pos1)
+            );
+
+            pedestrians.Add(new Pedestrian
+            {
+                RenderItem = ped1RenderItem,
+                Position = pos1,
+                LeftX = -5.2f,
+                RightX = 5.2f,
+                TargetX = 5.2f,
+                Z = -10.0f,
+                Speed = 1.2f,
+                WaitTimer = 2.0f,
+                WaitDuration = 2.0f,
+                HalfWidth = 0.45f,
+                HalfDepth = 0.45f
+            });
+
+            // Pedestrian 2 starts on the right and moves to the left.
+            Vector3 pos2 = new Vector3(5.2f, 1.5f, 15.0f);
+
+            RenderItem ped2RenderItem = AddRenderItem(
+                RenderLayer.Transparent,
+                objectCBIndex++,
+                "pedestrianMaterial",
+                "shapeGeo",
+                "rectangle",
+                world: Matrix.Scaling(0.45f, 0.9f, 1.0f) * Matrix.Translation(pos2)
+            );
+
+            pedestrians.Add(new Pedestrian
+            {
+                RenderItem = ped2RenderItem,
+                Position = pos2,
+                LeftX = -5.2f,
+                RightX = 5.2f,
+                TargetX = -5.2f,
+                Z = 15.0f,
+                Speed = 1.2f,
+                WaitTimer = 3.0f,
+                WaitDuration = 3.0f,
+                HalfWidth = 0.45f,
+                HalfDepth = 0.45f
+            });
+
+            return objectCBIndex;
+        }
+        private void UpdatePedestrians(GameTimer gameTimer)
+        {
+            float dt = gameTimer.DeltaTime;
+
+            for (int i = 0; i < pedestrians.Count; i++)
+            {
+                Pedestrian ped = pedestrians[i];
+
+                // Wait before crossing.
+                if (ped.WaitTimer > 0.0f)
+                {
+                    ped.WaitTimer -= dt;
+                }
+                else
+                {
+                    float direction = ped.TargetX > ped.Position.X ? 1.0f : -1.0f;
+
+                    ped.Position.X += direction * ped.Speed * dt;
+
+                    bool reachedTarget =
+                        direction > 0.0f && ped.Position.X >= ped.TargetX ||
+                        direction < 0.0f && ped.Position.X <= ped.TargetX;
+
+                    if (reachedTarget)
+                    {
+                        ped.Position.X = ped.TargetX;
+
+                        if (ped.TargetX == ped.RightX)
+                            ped.TargetX = ped.LeftX;
+                        else
+                            ped.TargetX = ped.RightX;
+
+                        ped.WaitTimer = ped.WaitDuration;
+                    }
+                }
+
+                ped.Position.Z = ped.Z;
+
+                Matrix scale = Matrix.Scaling(0.45f, 0.9f, 1.0f);
+
+                Matrix rotation = Matrix.Identity;
+
+                Matrix translation = Matrix.Translation(ped.Position);
+
+                ped.RenderItem.World = scale * rotation * translation;
+                ped.RenderItem.NumFramesDirty = NUMBER_OF_FRAME_RESOURCES;
+
+                pedestrians[i] = ped;
+            }
+        }
+
+        //Collison car - pedestrian
+        private bool CollidesWithPedestrians(float x, float z, float rotationY)
+        {
+            Vector3 forward = new Vector3(
+                (float)System.Math.Sin(rotationY),
+                0.0f,
+                (float)System.Math.Cos(rotationY)
+            );
+
+            Vector3 right = new Vector3(
+                (float)System.Math.Cos(rotationY),
+                0.0f,
+                -(float)System.Math.Sin(rotationY)
+            );
+
+            float playerHalfLength = 2.7f;
+            float playerHalfWidth = 0.65f;
+
+            Vector3 center = new Vector3(x, 0.0f, z);
+
+            Vector3[] playerPoints =
+            {
+        center + forward * playerHalfLength - right * playerHalfWidth,
+        center + forward * playerHalfLength + right * playerHalfWidth,
+        center - forward * playerHalfLength - right * playerHalfWidth,
+        center - forward * playerHalfLength + right * playerHalfWidth,
+        center
+    };
+
+            foreach (Pedestrian ped in pedestrians)
+            {
+                foreach (Vector3 p in playerPoints)
+                {
+                    bool insidePedestrian =
+                        p.X >= ped.Position.X - ped.HalfWidth &&
+                        p.X <= ped.Position.X + ped.HalfWidth &&
+                        p.Z >= ped.Position.Z - ped.HalfDepth &&
+                        p.Z <= ped.Position.Z + ped.HalfDepth;
+
+                    if (insidePedestrian)
+                        return true;
+                }
+            }
+
+            return false;
+        }
 
 
 
